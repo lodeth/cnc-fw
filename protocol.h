@@ -21,15 +21,14 @@
         #define STATE_BIT_RES1         5  /* 0x20 */
         #define STATE_BIT_RES2         6  /* 0x40 */
         #define STATE_BIT_RES3         7  /* 0x80 */
-
+        
         struct position_block
         {
-            uint8_t state;
+            //uint8_t state - actually saved in GPIOR0
             uint8_t inputs;
-            uint8_t reserved;
-            int32_t pX;
-            int32_t pY;
-            int32_t pZ;
+            int32_t X;
+            int32_t Y;
+            int32_t Z;
         } __attribute__((packed));
 
     // Limit switch tripped, motion halted

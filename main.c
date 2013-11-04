@@ -32,10 +32,11 @@ uint8_t protocol_handle_first_byte(uint8_t byte)
         case CMD_MOVE_JOG:      return sizeof(struct movement_block);
 
         case CMD_ZERO_POSITION:
-            current_position.pX = 0;
-            current_position.pY = 0;
-            current_position.pZ = 0;
-            current_position.state &= ~(1 << STATE_BIT_LOST);
+            sei();
+            current_position.X = 0;
+            current_position.Y = 0;
+            current_position.Z = 0;
+            STATE_FLAGS &= ~(1 << STATE_BIT_LOST);
             break;
 
         default:
@@ -48,13 +49,10 @@ uint8_t protocol_handle_first_byte(uint8_t byte)
 
 void protocol_handle_long_command(uint8_t * buffer)
 {
-
     uint8_t byte = buffer[0];
-
     if (byte == CMD_MOVE_JOG) {
         movement_jog((struct movement_block *) (buffer + 1));
         serial_tx(RES_ACK);
-
     } else if (byte == CMD_MOVE_QUEUE) {
         uint8_t seqno = buffer[1];
         if (seqno != expected_queue_seqno) {
@@ -80,8 +78,12 @@ ISR(TIMER0_OVF_vect)
     if (++cnt != STATUS_PUSH_INTERVAL)
         return;
     cnt = 0;
+    struct position_block tmp;
+    memcpy(&tmp, &current_position, sizeof(struct position_block));
+    sei();
     serial_tx(MSG_POSITION);
-    serial_txb(&current_position, sizeof(struct position_block));
+    serial_tx(STATE_FLAGS);
+    serial_txb(&tmp, sizeof(struct position_block));
 }
 
 
@@ -99,10 +101,10 @@ ISR(INPUT_PCI_vect)
         // We preserve STATE_BIT_LOST across the stop.
         // It should be safe to assume that we're not moving fast enough to lose steps when probing
         // In the future we need to use a safe speed limit for determining this
-        uint8_t state = current_position.state;
+        uint8_t state = STATE_FLAGS; 
         movement_stop();
         if (state & (1 << STATE_BIT_LOST) == 0)
-            current_position.state &= ~(1 << STATE_BIT_LOST);
+            STATE_FLAGS &= ~(1 << STATE_BIT_LOST);
 
     }
 }
@@ -120,9 +122,9 @@ int main()
 
     sei();
 
-    //TCCR0A = 0;
-    //TCCR0B = (5<<CS00);
-    //TIMSK0 = (1<<TOIE0);
+    TCCR0A = 0;
+    TCCR0B = (5<<CS00);
+    TIMSK0 = (1<<TOIE0);
 
     PCICR |= (1 << INPUT_PCIE);
     INPUT_PCIMSK = 0xff;
