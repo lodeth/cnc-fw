@@ -77,7 +77,7 @@ void protocol_handle_long_command(uint8_t * buffer)
 ISR(TIMER0_OVF_vect)
 {
     static uint8_t cnt;
-    if (++cnt != 0x40)
+    if (++cnt != STATUS_PUSH_INTERVAL)
         return;
     cnt = 0;
 

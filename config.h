@@ -1,18 +1,27 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// This is an experimentally determined value for _my_ stepper drivers
-#define STEP_PULSE_WIDTH_TICKS 10
+// -----------------------------------------------------------------
+//
+//  General configuration for magic values
+//
+// -----------------------------------------------------------------
 
-// Use USART1 instead of USART0
-#define USE_USART1  1
+// This is an experimentally determined value for _my_ stepper drivers  (5 < value < 100) 
+#define STEP_PULSE_WIDTH_TICKS      10
 
-// Please keep this a power of two or hilarity ensues
-#define SERIAL_TX_QUEUE_SIZE    64
-#define SERIAL_RX_BUFFER_SIZE   32
+// Use USART1 instead of USART0. Comment to disable.
+#define USE_USART1                  1
 
-// Please keep this a power of two or hilarity ensues
-#define MOVEMENT_QUEUE_SIZE 256
+// Please keep this a power of two or hilarity ensues (value <= 256)
+#define SERIAL_TX_QUEUE_SIZE        64
+#define SERIAL_RX_BUFFER_SIZE       32
+
+// Please keep this a power of two or hilarity ensues (value <= 256)
+#define MOVEMENT_QUEUE_SIZE         256
+
+// Count of TIMER0 overflows before sending status (value <= 256)
+#define STATUS_PUSH_INTERVAL        32 
 
 // -----------------------------------------------------------------
 //
@@ -104,8 +113,6 @@
     #define SERIAL_RXCIE            RXCIE0
     #define SERIAL_UDRIE            UDRIE0
 #endif
-
-
 
 #endif
 
