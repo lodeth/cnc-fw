@@ -20,9 +20,9 @@
 #endif
 
 #if STEPPER_STEP_ACTIVE_LOW
-#define ACTIVATE_STEP(d) STEPPER_PORT &= ~(1 << d)
+#define ACTIVATE_STEP(d) do {STEPPER_PORT &= ~(1 << d); } while(0)
 #else
-#define ACTIVATE_STEP(d) STEPPER_PORT |= (1 << d)
+#define ACTIVATE_STEP(d) do {STEPPER_PORT |= (1 << d);} while(0)
 #endif
 
 
@@ -40,9 +40,11 @@ static uint8_t movement_queue_head;
 static uint8_t movement_queue_tail;
 static struct movement_block movement_queue_blocks[MOVEMENT_QUEUE_SIZE];
 
+void movement_set(struct movement_block * next_op);
+
 void movement_init()
 {
-    movement_stop();
+    movement_stop(STOP_REASON_RESET);
     STEPPER_DDR = 0xff;
 
     movement_disable_steppers();
@@ -62,12 +64,14 @@ void movement_init()
     TCCR1C = 0;
     TCCR3A = 0;
     TCCR3C = 0;
+    TCNT0 = 0;
+    TCNT3 = 0;
 
-    TCCR1B = (1 << CS10);
+    TCCR1B = (MOVEMENT_TIMESLICE << CS10);
     TCCR3B = (1 << CS10);
 }
 
-void movement_stop()
+void movement_stop(uint8_t reason)
 {
     uint8_t flg = SREG;
     cli();
@@ -76,9 +80,12 @@ void movement_stop()
     movement_queue_head = 0;
     movement_queue_tail = 0;
 
-    if (STATE_FLAGS & (1 << STATE_BIT_MOVING)) {
+    // It should be safe to assume that we're not moving fast enough to lose steps when probing
+    // In the future we need to use a safe speed limit for determining this
+    if ((STATE_FLAGS & (1 << STATE_BIT_MOVING)) && (reason != STOP_REASON_PROBE)) {
         STATE_FLAGS |= (1 << STATE_BIT_LOST);
     }
+    current_position.stop_reason = reason;
 
     STATE_FLAGS |=  (1 << STATE_BIT_BUFFER_EMPTY);
     STATE_FLAGS &= ~(1 << STATE_BIT_BUFFER_FULL);
@@ -92,7 +99,9 @@ void movement_start()
     TCNT0 = 0;
     TCNT3 = 0;
     TIFR1 = 0;
+    TIMSK3 &= (1 << TOIE3);
     TIMSK1 = (1 << TOIE1);
+    current_position.stop_reason = STOP_REASON_NONE;
 }
 
 int8_t movement_push(struct movement_block * op)
@@ -115,26 +124,43 @@ ISR(TIMER1_OVF_vect)
     if (movement_queue_head == movement_queue_tail) {
         STATE_FLAGS |= (1 << STATE_BIT_BUFFER_EMPTY);
         if (STATE_FLAGS & (1 << STATE_BIT_RUNNING)) {
-            serial_tx(MSG_BUFFER_UNDERRUN);
-            movement_stop();
+            movement_stop(STOP_REASON_UNDERRUN);
         }
         return;
     }
 
-    movement_jog(&movement_queue_blocks[movement_queue_tail]);
-    STATE_FLAGS |= (1 << STATE_BIT_RUNNING);
+    movement_set(&movement_queue_blocks[movement_queue_tail]);
     TIMSK1 |= (1 << TOIE1);
-
+    STATE_FLAGS |= (1 << STATE_BIT_RUNNING);
     movement_queue_tail++;
     if (movement_queue_tail == MOVEMENT_QUEUE_SIZE)
         movement_queue_tail = 0;
     STATE_FLAGS &= ~(1 << STATE_BIT_BUFFER_FULL);
 }
 
+static struct movement_block jog_movement;
 
-void movement_jog(struct movement_block * next_op)
+void movement_jog(struct movement_block * op)
+{
+    TIMSK1 &= ~(1 << TOIE1);
+    if (STATE_FLAGS & (1 << STATE_BIT_MOVING) == 0) {
+        TCNT0 = 0;
+        TCNT3 = 0;
+    }
+    STATE_FLAGS &= ~(1 << STATE_BIT_RUNNING);
+    memcpy(&jog_movement, op, sizeof(struct movement_block));
+    TIMSK3 |= (1 << TOIE3);
+}
+
+ISR(TIMER3_OVF_vect)
+{
+    movement_set(&jog_movement);
+}
+
+void movement_set(struct movement_block * next_op)
 {
     TIMSK1 = 0;
+    current_position.stop_reason = STOP_REASON_NONE;
     intervalX = pgm_read_word(&pulse_timings[abs(next_op->nX)]);
     OCR1A = intervalX;
 
@@ -180,12 +206,12 @@ void movement_jog(struct movement_block * next_op)
 // Take step on X
 ISR(TIMER1_COMPA_vect)
 {
+    OCR1A += intervalX;
     if (DIR_IS_POSITIVE(STEPPER_PIN_DIR_X)) {
         current_position.X++;
     } else {
         current_position.X--;
     }
-    OCR1A += intervalX;
     ACTIVATE_STEP(STEPPER_PIN_STEP_X);
     OCR3A = TCNT3 + STEP_PULSE_WIDTH_TICKS;
 }
@@ -193,19 +219,20 @@ ISR(TIMER1_COMPA_vect)
 // Take step on Y
 ISR(TIMER1_COMPB_vect)
 {
+    OCR1B += intervalY;
     if (DIR_IS_POSITIVE(STEPPER_PIN_DIR_Y)) {
         current_position.Y++;
     } else {
         current_position.Y--;
     }
     ACTIVATE_STEP(STEPPER_PIN_STEP_Y);
-    OCR1B += intervalY;
     OCR3B = TCNT3 + STEP_PULSE_WIDTH_TICKS;
 }
 
 // Take step on Z
 ISR(TIMER1_COMPC_vect)
 {
+    OCR1C += intervalZ;
     if (DIR_IS_POSITIVE(STEPPER_PIN_DIR_Z)) {
         current_position.Z++;
     } else {
@@ -213,7 +240,6 @@ ISR(TIMER1_COMPC_vect)
     }
 
     ACTIVATE_STEP(STEPPER_PIN_STEP_Z);
-    OCR1C += intervalZ;
     OCR3C = TCNT3 + STEP_PULSE_WIDTH_TICKS;
 }
 

@@ -12,7 +12,7 @@ void movement_enable_spindle();
 void movement_disable_spindle();
 
 // stop movement and flush queues
-void movement_stop();
+void movement_stop(uint8_t reason);
 
 // start executing queued movements
 void movement_start();

@@ -8,24 +8,32 @@
     // Sent upon device reset
     #define MSG_RESET           0xF0
 
-    // Buffer underrun, motion stopped
-    #define MSG_BUFFER_UNDERRUN 0xF1
-
     // Machine position update push
-    #define MSG_POSITION        0xF2
-        #define STATE_BIT_BUFFER_EMPTY 0  /* 0x01 */
-        #define STATE_BIT_BUFFER_FULL  1  /* 0x02 */
-        #define STATE_BIT_MOVING       2  /* 0x04 */
-        #define STATE_BIT_RUNNING      3  /* 0x08 */
-        #define STATE_BIT_LOST         4  /* 0x10 */
+    #define MSG_POSITION        0xF1
+        #define STATE_BIT_BUFFER_EMPTY 0  /* 0x01 Motion buffer empty */
+        #define STATE_BIT_BUFFER_FULL  1  /* 0x02 Motion buffer full */
+        #define STATE_BIT_MOVING       2  /* 0x04 Machine is moving */
+        #define STATE_BIT_RUNNING      3  /* 0x08 Motion stream is being processed */
+        #define STATE_BIT_LOST         4  /* 0x10 Machine was moving while motion was stopped */
         #define STATE_BIT_RES1         5  /* 0x20 */
         #define STATE_BIT_RES2         6  /* 0x40 */
         #define STATE_BIT_RES3         7  /* 0x80 */
-        
+       
+        enum stop_reason_enum {
+            STOP_REASON_NONE,
+            STOP_REASON_RESET,
+            STOP_REASON_COMMAND,
+            STOP_REASON_UNDERRUN,
+            STOP_REASON_LIMIT,
+            STOP_REASON_PROBE,
+            STOP_REASON_MAX,
+        };
+
         struct position_block
         {
             //uint8_t state - actually saved in GPIOR0
             uint8_t inputs;
+            uint8_t stop_reason;
             int32_t X;
             int32_t Y;
             int32_t Z;

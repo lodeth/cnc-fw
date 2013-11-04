@@ -20,7 +20,7 @@ uint8_t protocol_handle_first_byte(uint8_t byte)
         case CMD_NOP: return 0; // Special case, no response at all
         case CMD_ECHO: break;
 
-        case CMD_MOVE_STOP:     expected_queue_seqno = 0; movement_stop(); break;
+        case CMD_MOVE_STOP:     expected_queue_seqno = 0; movement_stop(STOP_REASON_COMMAND); break;
         case CMD_MOVE_START:    movement_start(); break;
 
         case CMD_MOTORS_ON:     movement_enable_steppers(); break;
@@ -32,7 +32,6 @@ uint8_t protocol_handle_first_byte(uint8_t byte)
         case CMD_MOVE_JOG:      return sizeof(struct movement_block);
 
         case CMD_ZERO_POSITION:
-            sei();
             current_position.X = 0;
             current_position.Y = 0;
             current_position.Z = 0;
@@ -41,7 +40,7 @@ uint8_t protocol_handle_first_byte(uint8_t byte)
 
         default:
             serial_tx(RES_NAK);
-            break;
+            return;
     }
     serial_tx(RES_ACK);
     return 0;
@@ -80,7 +79,6 @@ ISR(TIMER0_OVF_vect)
     cnt = 0;
     struct position_block tmp;
     memcpy(&tmp, &current_position, sizeof(struct position_block));
-    sei();
     serial_tx(MSG_POSITION);
     serial_tx(STATE_FLAGS);
     serial_txb(&tmp, sizeof(struct position_block));
@@ -92,21 +90,11 @@ ISR(INPUT_PCI_vect)
     uint8_t change = INPUT_PIN ^ current_position.inputs;
     current_position.inputs = INPUT_PIN;
     if (change & ((1 << INPUT_LIMIT_X) | (1 << INPUT_LIMIT_Y) | (1 << INPUT_LIMIT_Z))) {
-        serial_tx(MSG_LIMIT_TRIPPED);
-        movement_stop();
+        movement_stop(STOP_REASON_LIMIT);
     }
 
-    if (change & (1 << INPUT_PROBE)) {
-        serial_tx(MSG_PROBE_TRIPPED);
-        // We preserve STATE_BIT_LOST across the stop.
-        // It should be safe to assume that we're not moving fast enough to lose steps when probing
-        // In the future we need to use a safe speed limit for determining this
-        uint8_t state = STATE_FLAGS; 
-        movement_stop();
-        if (state & (1 << STATE_BIT_LOST) == 0)
-            STATE_FLAGS &= ~(1 << STATE_BIT_LOST);
-
-    }
+    if (change & (1 << INPUT_PROBE))
+        movement_stop(STOP_REASON_PROBE);
 }
 
 int main()
@@ -116,6 +104,7 @@ int main()
 
     INPUT_DDR  = 0x00;
     INPUT_PORT = 0xff;
+    current_position.inputs = INPUT_PIN;
 
     DDRD = 0x03;
     PORTD = 0x01;

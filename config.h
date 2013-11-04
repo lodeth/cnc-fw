@@ -23,6 +23,13 @@
 // Count of TIMER0 overflows before sending status (value <= 256)
 #define STATUS_PUSH_INTERVAL        128 
 
+
+// Timeslice of motion. Selects base value for the speeds
+#define TIMESLICE_4MS   1
+#define TIMESLICE_32MS  2
+
+#define MOVEMENT_TIMESLICE TIMESLICE_32MS
+
 // -----------------------------------------------------------------
 //
 //  Configuration for inputs
@@ -88,15 +95,6 @@
 #define STEPPER_PIN_ENABLE          6
 #define STEPPER_PIN_SPINDLE         7
 
-
-// -----------------------------------------------------------------
-//
-// Internal defines
-//
-// -----------------------------------------------------------------
-
-#define STATE_FLAGS GPIOR0
-
 // -----------------------------------------------------------------
 //
 //  Definitions for USARTs follow
@@ -129,6 +127,15 @@
     #define SERIAL_RXCIE            RXCIE0
     #define SERIAL_UDRIE            UDRIE0
 #endif
+
+
+// -----------------------------------------------------------------
+//
+// Internal defines
+//
+// -----------------------------------------------------------------
+
+#define STATE_FLAGS GPIOR0
 
 #endif
 
