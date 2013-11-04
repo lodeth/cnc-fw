@@ -35,6 +35,9 @@
     // Limit switch tripped, motion halted
     #define MSG_LIMIT_TRIPPED   0xF3
 
+    // Probe switch tripped, motion halted
+    #define MSG_PROBE_TRIPPED   0xF4
+
     // Internal error, system in panic mode
     #define MSG_FIRMWARE_PANIC  0xEE
 

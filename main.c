@@ -35,7 +35,7 @@ uint8_t protocol_handle_first_byte(uint8_t byte)
             current_position.pX = 0;
             current_position.pY = 0;
             current_position.pZ = 0;
-            current_position.state &= ~(1<<STATE_BIT_LOST);
+            current_position.state &= ~(1 << STATE_BIT_LOST);
             break;
 
         default:
@@ -83,18 +83,28 @@ ISR(TIMER0_OVF_vect)
 
     serial_tx(MSG_POSITION);
     serial_txb(&current_position, sizeof(struct position_block));
-    sei();
-    UCSR1B |= (1<<UDRIE1); // Force triggering of interrupt if transmitter was idle
 }
 
 
 ISR(INPUT_PCI_vect)
 {
-    uint8_t change = INPUT_PIN ^ current_position.state;
-    current_position.state = INPUT_PIN;
-    if (change & INPUT_LIMIT_MASK) {
+    uint8_t change = INPUT_PIN ^ current_position.inputs;
+    current_position.inputs = INPUT_PIN;
+    if (change & ((1 << INPUT_LIMIT_X) | (1 << INPUT_LIMIT_Y) | (1 << INPUT_LIMIT_Z))) {
         serial_tx(MSG_LIMIT_TRIPPED);
         movement_stop();
+    }
+
+    if (change & (1 << INPUT_PROBE)) {
+        serial_tx(MSG_PROBE_TRIPPED);
+        // We preserve STATE_BIT_LOST across the stop.
+        // It should be safe to assume that we're not moving fast enough to lose steps when probing
+        // In the future we need to use a safe speed limit for determining this
+        uint8_t state = current_position.state;
+        movement_stop();
+        if (state & (1 << STATE_BIT_LOST) == 0)
+            current_position.state &= ~(1 << STATE_BIT_LOST);
+
     }
 }
 

@@ -3,37 +3,35 @@
 
 #include "serial.h"
 #include "protocol.h"
+#include "config.h"
 
 uint8_t protocol_handle_first_byte(uint8_t byte);
 void protocol_handle_long_command(uint8_t * buffer);
 
-// Keep this a power of two or suffer
-#define TRANSMIT_QUEUE_SIZE 64
 static uint8_t transmit_queue_head;
 volatile static uint8_t transmit_queue_tail;
-static uint8_t transmit_queue[TRANSMIT_QUEUE_SIZE];
+static uint8_t transmit_queue[SERIAL_TX_QUEUE_SIZE];
 
 void serial_init()
 {
     // Serial setup to 115200 baud 8N1
-    UBRR1 = 16;
-    UCSR1A = (1 << U2X1);
-    UCSR1B = (1<<RXEN1) | (1<<TXEN1) | (1<<RXCIE1); 
+    SERIAL_UBRR = 16;
+    SERIAL_UCSRnA = (1 << SERIAL_U2X);
+    SERIAL_UCSRnB = (1 << SERIAL_RXEN) | (1 << SERIAL_TXEN) | (1 << SERIAL_RXCIE); 
 }
 
-#define RX_BUFFER_SIZE 32
 static uint8_t rx_count = 0;
-static uint8_t rx_buffer[RX_BUFFER_SIZE];
+static uint8_t rx_buffer[SERIAL_RX_BUFFER_SIZE];
 static uint8_t expected_len;
 
-ISR(USART1_RX_vect)
+ISR(SERIAL_RX_vect)
 {
-    uint8_t byte = UDR1;
+    uint8_t byte = SERIAL_UDR;
     if (rx_count == 0) {
         expected_len = protocol_handle_first_byte(byte);
         if (expected_len == 0)
             return;
-        if (expected_len >= RX_BUFFER_SIZE) {
+        if (expected_len >= SERIAL_RX_BUFFER_SIZE) {
             FIRMWARE_PANIC();
         }
     }
@@ -61,7 +59,7 @@ void serial_txb(void * byte, uint8_t len)
 
 void serial_tx(uint8_t byte)
 {
-    uint8_t new_head = (transmit_queue_head + 1) & (TRANSMIT_QUEUE_SIZE - 1);
+    uint8_t new_head = (transmit_queue_head + 1) & (SERIAL_TX_QUEUE_SIZE - 1);
 
     // Enable interrupts while waiting for space to free up
     if (new_head == transmit_queue_tail) {
@@ -73,16 +71,19 @@ void serial_tx(uint8_t byte)
 
     transmit_queue[transmit_queue_head] = byte;
     transmit_queue_head = new_head;
-    UCSR1B |= (1<<UDRIE1); // Force triggering of interrupt if transmitter was idle
+    SERIAL_UCSRnB |= (1 << SERIAL_UDRIE);
 }
 
-ISR(USART1_UDRE_vect)
+ISR(SERIAL_UDRE_vect)
 {
-    if (transmit_queue_head == transmit_queue_tail)
+    if (transmit_queue_head == transmit_queue_tail) {
+        SERIAL_UCSRnB &= ~(1 << SERIAL_UDRIE);
         return;
-    UDR1 = transmit_queue[transmit_queue_tail];
+    }
+
+    SERIAL_UDR = transmit_queue[transmit_queue_tail];
     transmit_queue_tail++;
-    if (transmit_queue_tail == TRANSMIT_QUEUE_SIZE)
+    if (transmit_queue_tail == SERIAL_TX_QUEUE_SIZE)
         transmit_queue_tail = 0;
 }
 
