@@ -80,7 +80,6 @@ ISR(TIMER0_OVF_vect)
     if (++cnt != STATUS_PUSH_INTERVAL)
         return;
     cnt = 0;
-
     serial_tx(MSG_POSITION);
     serial_txb(&current_position, sizeof(struct position_block));
 }
@@ -121,9 +120,9 @@ int main()
 
     sei();
 
-    TCCR0A = 0;
-    TCCR0B = (5<<CS00);
-    TIMSK0 = (1<<TOIE0);
+    //TCCR0A = 0;
+    //TCCR0B = (5<<CS00);
+    //TIMSK0 = (1<<TOIE0);
 
     PCICR |= (1 << INPUT_PCIE);
     INPUT_PCIMSK = 0xff;

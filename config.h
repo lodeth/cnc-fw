@@ -8,7 +8,7 @@
 // -----------------------------------------------------------------
 
 // This is an experimentally determined value for _my_ stepper drivers  (5 < value < 100) 
-#define STEP_PULSE_WIDTH_TICKS      10
+#define STEP_PULSE_WIDTH_TICKS      50
 
 // Use USART1 instead of USART0. Comment to disable.
 #define USE_USART1                  1
@@ -21,7 +21,7 @@
 #define MOVEMENT_QUEUE_SIZE         256
 
 // Count of TIMER0 overflows before sending status (value <= 256)
-#define STATUS_PUSH_INTERVAL        32 
+#define STATUS_PUSH_INTERVAL        128 
 
 // -----------------------------------------------------------------
 //
