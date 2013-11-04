@@ -46,15 +46,11 @@ ISR(SERIAL_RX_vect)
 
 void serial_txb(void * byte, uint8_t len)
 {
-    // Disable interrupts while pushing data to TX queue
-    uint8_t flg = SREG;
-    cli();
     uint8_t * p = (uint8_t *) byte;
     while (len--) {
         serial_tx(*p);
         p++;
     }
-    SREG = flg;
 }
 
 void serial_tx(uint8_t byte)
@@ -77,7 +73,6 @@ void serial_tx(uint8_t byte)
 ISR(SERIAL_UDRE_vect)
 {
     if (transmit_queue_head == transmit_queue_tail) {
-        SERIAL_UCSRnB &= ~(1 << SERIAL_UDRIE);
         return;
     }
 

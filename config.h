@@ -8,7 +8,7 @@
 // -----------------------------------------------------------------
 
 // This is an experimentally determined value for _my_ stepper drivers  (5 < value < 100) 
-#define STEP_PULSE_WIDTH_TICKS      50
+#define STEP_PULSE_WIDTH_TICKS      20
 
 // Use USART1 instead of USART0. Comment to disable.
 #define USE_USART1                  1
@@ -87,6 +87,15 @@
 #define STEPPER_PIN_DIR_Z           5
 #define STEPPER_PIN_ENABLE          6
 #define STEPPER_PIN_SPINDLE         7
+
+
+// -----------------------------------------------------------------
+//
+// Internal defines
+//
+// -----------------------------------------------------------------
+
+#define STATE_FLAGS GPIOR0
 
 // -----------------------------------------------------------------
 //

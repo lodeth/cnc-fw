@@ -76,14 +76,14 @@ void movement_stop()
     movement_queue_head = 0;
     movement_queue_tail = 0;
 
-    if (current_position.state & (1 << STATE_BIT_MOVING)) {
-        current_position.state |= (1 << STATE_BIT_LOST);
+    if (STATE_FLAGS & (1 << STATE_BIT_MOVING)) {
+        STATE_FLAGS |= (1 << STATE_BIT_LOST);
     }
 
-    current_position.state |=  (1 << STATE_BIT_BUFFER_EMPTY);
-    current_position.state &= ~(1 << STATE_BIT_BUFFER_FULL);
-    current_position.state &= ~(1 << STATE_BIT_MOVING);
-    current_position.state &= ~(1 << STATE_BIT_RUNNING);
+    STATE_FLAGS |=  (1 << STATE_BIT_BUFFER_EMPTY);
+    STATE_FLAGS &= ~(1 << STATE_BIT_BUFFER_FULL);
+    STATE_FLAGS &= ~(1 << STATE_BIT_MOVING);
+    STATE_FLAGS &= ~(1 << STATE_BIT_RUNNING);
     SREG = flg;
 }
 
@@ -100,21 +100,21 @@ int8_t movement_push(struct movement_block * op)
     uint8_t new_head = (movement_queue_head + 1) & (MOVEMENT_QUEUE_SIZE - 1);
 
     if (new_head == movement_queue_tail) {
-        current_position.state |= (1 << STATE_BIT_BUFFER_FULL);
+        STATE_FLAGS |= (1 << STATE_BIT_BUFFER_FULL);
         return -1;
     }
 
     memcpy(&movement_queue_blocks[movement_queue_head], op, sizeof(struct movement_block));
     movement_queue_head = new_head;
-    current_position.state &= ~(1 << STATE_BIT_BUFFER_EMPTY);
+    STATE_FLAGS &= ~(1 << STATE_BIT_BUFFER_EMPTY);
     return 0;
 }
 
 ISR(TIMER1_OVF_vect)
 {
     if (movement_queue_head == movement_queue_tail) {
-        current_position.state |= (1 << STATE_BIT_BUFFER_EMPTY);
-        if (current_position.state & (1 << STATE_BIT_RUNNING)) {
+        STATE_FLAGS |= (1 << STATE_BIT_BUFFER_EMPTY);
+        if (STATE_FLAGS & (1 << STATE_BIT_RUNNING)) {
             serial_tx(MSG_BUFFER_UNDERRUN);
             movement_stop();
         }
@@ -122,13 +122,13 @@ ISR(TIMER1_OVF_vect)
     }
 
     movement_jog(&movement_queue_blocks[movement_queue_tail]);
-    current_position.state |= (1 << STATE_BIT_RUNNING);
+    STATE_FLAGS |= (1 << STATE_BIT_RUNNING);
     TIMSK1 |= (1 << TOIE1);
 
     movement_queue_tail++;
     if (movement_queue_tail == MOVEMENT_QUEUE_SIZE)
         movement_queue_tail = 0;
-    current_position.state &= ~(1 << STATE_BIT_BUFFER_FULL);
+    STATE_FLAGS &= ~(1 << STATE_BIT_BUFFER_FULL);
 }
 
 
@@ -170,54 +170,51 @@ void movement_jog(struct movement_block * next_op)
     }
 
     STEPPER_PORT = newport;
-
+    TIMSK3 = TIMSK1;
     if (TIMSK1 != 0)
-        current_position.state |= (1 << STATE_BIT_MOVING);
+        STATE_FLAGS |= (1 << STATE_BIT_MOVING);
     else
-        current_position.state &= ~(1 << STATE_BIT_MOVING);
+        STATE_FLAGS &= ~(1 << STATE_BIT_MOVING);
 }
 
 // Take step on X
 ISR(TIMER1_COMPA_vect)
 {
     if (DIR_IS_POSITIVE(STEPPER_PIN_DIR_X)) {
-        current_position.pX++;
+        current_position.X++;
     } else {
-        current_position.pX--;
+        current_position.X--;
     }
     OCR1A += intervalX;
     ACTIVATE_STEP(STEPPER_PIN_STEP_X);
     OCR3A = TCNT3 + STEP_PULSE_WIDTH_TICKS;
-    TIMSK3 |= (1 << OCIE3A);
 }
 
 // Take step on Y
 ISR(TIMER1_COMPB_vect)
 {
     if (DIR_IS_POSITIVE(STEPPER_PIN_DIR_Y)) {
-        current_position.pY++;
+        current_position.Y++;
     } else {
-        current_position.pY--;
+        current_position.Y--;
     }
     ACTIVATE_STEP(STEPPER_PIN_STEP_Y);
     OCR1B += intervalY;
     OCR3B = TCNT3 + STEP_PULSE_WIDTH_TICKS;
-    TIMSK3 |= (1 << OCIE3B);
 }
 
 // Take step on Z
 ISR(TIMER1_COMPC_vect)
 {
     if (DIR_IS_POSITIVE(STEPPER_PIN_DIR_Z)) {
-        current_position.pZ++;
+        current_position.Z++;
     } else {
-        current_position.pZ--;
+        current_position.Z--;
     }
 
     ACTIVATE_STEP(STEPPER_PIN_STEP_Z);
     OCR1C += intervalZ;
     OCR3C = TCNT3 + STEP_PULSE_WIDTH_TICKS;
-    TIMSK3 |= (1 << OCIE3C);
 }
 
 void movement_enable_steppers()
@@ -236,8 +233,8 @@ void movement_disable_steppers()
 #else
     STEPPER_PORT &= ~(1 << STEPPER_PIN_ENABLE);
 #endif
-    if (current_position.state & (1 << STATE_BIT_MOVING)) {
-        current_position.state |= (1 << STATE_BIT_LOST);
+    if (STATE_FLAGS & (1 << STATE_BIT_MOVING)) {
+        STATE_FLAGS |= (1 << STATE_BIT_LOST);
     }
 }
 
