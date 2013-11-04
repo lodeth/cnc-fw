@@ -58,28 +58,35 @@
 //  Configuration for motor outputs
 //
 // -----------------------------------------------------------------
-// Please do not touch these unless it is to change axis order
-// There are still hardcoded values left in the code
-// It is assumed that:
-//    STEP_BIT_n == AXIS_BIT_n
-//    DIR_BIT_n == AXIS_BIT_n + 3
 //
 // Default values result in the following:
-//    /STEP_X  = PF.0
-//    /STEP_Y  = PF.1
-//    /STEP_Z  = PF.2
-//    /DIR_X   = PF.3
-//    /DIR_Y   = PF.4
-//    /DIR_Z   = PF.5
-//    /ENABLE  = PF.6
-//    /SPINDLE = PF.7
-// Do note that all signals are ACTIVE LOW
+//    STEP_X  = PF.0
+//    STEP_Y  = PF.1
+//    STEP_Z  = PF.2
+//    DIR_X   = PF.3
+//    DIR_Y   = PF.4
+//    DIR_Z   = PF.5
+//    ENABLE  = PF.6
+//    SPINDLE = PF.7
 
-#define STEPPER_PORT        PORTF
-#define STEPPER_DDR         DDRF
-#define AXIS_BIT_X          0
-#define AXIS_BIT_Y          1
-#define AXIS_BIT_Z          2
+#define STEPPER_PORT            PORTF
+#define STEPPER_DDR             DDRF
+
+// Signal polarity
+#define STEPPER_ENABLE_ACTIVE_LOW  1
+#define STEPPER_SPINDLE_ACTIVE_LOW 1
+#define STEPPER_STEP_ACTIVE_LOW    1
+#define STEPPER_DIR_POSITIVE_LOW   1
+
+// Signal port pins
+#define STEPPER_PIN_STEP_X          0
+#define STEPPER_PIN_STEP_Y          1
+#define STEPPER_PIN_STEP_Z          2
+#define STEPPER_PIN_DIR_X           3
+#define STEPPER_PIN_DIR_Y           4
+#define STEPPER_PIN_DIR_Z           5
+#define STEPPER_PIN_ENABLE          6
+#define STEPPER_PIN_SPINDLE         7
 
 // -----------------------------------------------------------------
 //

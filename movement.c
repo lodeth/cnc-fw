@@ -11,6 +11,21 @@
 #include "serial.h"
 #include "config.h"
 
+#if STEPPER_DIR_POSITIVE_LOW
+#define DIR_IS_POSITIVE(d) ((STEPPER_PORT & (1 << d)) == 0)
+#define SHOULD_SET_DIR_BIT(d) (d) < 0
+#else
+#define DIR_IS_POSITIVE(d) (STEPPER_PORT & (1 << d))
+#define SHOULD_SET_DIR_BIT(d) (d) > 0
+#endif
+
+#if STEPPER_STEP_ACTIVE_LOW
+#define ACTIVATE_STEP(d) STEPPER_PORT &= ~(1 << d)
+#else
+#define ACTIVATE_STEP(d) STEPPER_PORT |= (1 << d)
+#endif
+
+
 extern const uint16_t pulse_timings[] PROGMEM;
 
 extern struct position_block current_position;
@@ -29,9 +44,19 @@ void movement_init()
 {
     movement_stop();
     STEPPER_DDR = 0xff;
-    STEPPER_PORT = 0xff;
+
     movement_disable_steppers();
     movement_disable_spindle();
+
+#if STEPPER_STEP_ACTIVE_LOW
+    STEPPER_PORT |= ((1 << STEPPER_PIN_STEP_X) |
+                     (1 << STEPPER_PIN_STEP_Y) |
+                     (1 << STEPPER_PIN_STEP_Z));
+#else
+    STEPPER_PORT &= ~((1 << STEPPER_PIN_STEP_X) |
+                      (1 << STEPPER_PIN_STEP_Y) |
+                      (1 << STEPPER_PIN_STEP_Z));
+#endif
 
     TCCR1A = 0;
     TCCR1C = 0;
@@ -119,21 +144,32 @@ void movement_jog(struct movement_block * next_op)
     intervalZ = pgm_read_word(&pulse_timings[abs(next_op->nZ)]);
     OCR1C = intervalZ;
 
-    uint8_t newport = (STEPPER_PORT & (0x80 | 0x40)) | 0x7;
-    if (next_op->nX < 0)
-        newport |= ((1 << 3) << AXIS_BIT_X);
-    if (next_op->nY < 0)
-        newport |= ((1 << 3) << AXIS_BIT_Y);
-    if (next_op->nZ < 0)
-        newport |= ((1 << 3) << AXIS_BIT_Z);
-    STEPPER_PORT = newport;
+    uint8_t newport = (STEPPER_PORT & ((1 << STEPPER_PIN_ENABLE)
+                                     | (1 << STEPPER_PIN_SPINDLE)))
+#if STEPPER_STEP_ACTIVE_LOW
+                      | (1 << STEPPER_PIN_STEP_X)
+                      | (1 << STEPPER_PIN_STEP_Y)
+                      | (1 << STEPPER_PIN_STEP_Z)
+#endif
+                      ;
 
-    if (next_op->nX != 0)
+    if (next_op->nX != 0) {
         TIMSK1 |= (1 << OCIE1A);
-    if (next_op->nY != 0)
+        if (SHOULD_SET_DIR_BIT(next_op->nX))
+            newport |= (1 << STEPPER_PIN_DIR_X);
+    }
+    if (next_op->nY != 0) {
         TIMSK1 |= (1 << OCIE1B);
-    if (next_op->nZ != 0)
+        if (SHOULD_SET_DIR_BIT(next_op->nY))
+            newport |= (1 << STEPPER_PIN_DIR_Y);
+    }
+    if (next_op->nZ != 0) {
         TIMSK1 |= (1 << OCIE1C);
+        if (SHOULD_SET_DIR_BIT(next_op->nZ))
+            newport |= (1 << STEPPER_PIN_DIR_Z);
+    }
+
+    STEPPER_PORT = newport;
 
     if (TIMSK1 != 0)
         current_position.state |= (1 << STATE_BIT_MOVING);
@@ -144,14 +180,13 @@ void movement_jog(struct movement_block * next_op)
 // Take step on X
 ISR(TIMER1_COMPA_vect)
 {
-    if (STEPPER_PORT & ((1 << 3) << AXIS_BIT_X)) {
-        current_position.pX--;
-    } else {
+    if (DIR_IS_POSITIVE(STEPPER_PIN_DIR_X)) {
         current_position.pX++;
+    } else {
+        current_position.pX--;
     }
-
     OCR1A += intervalX;
-    STEPPER_PORT &= ~(1 << AXIS_BIT_X);
+    ACTIVATE_STEP(STEPPER_PIN_STEP_X);
     OCR3A = TCNT3 + STEP_PULSE_WIDTH_TICKS;
     TIMSK3 |= (1 << OCIE3A);
 }
@@ -159,12 +194,12 @@ ISR(TIMER1_COMPA_vect)
 // Take step on Y
 ISR(TIMER1_COMPB_vect)
 {
-    if (STEPPER_PORT & ((1 << 3) << AXIS_BIT_Y)) {
-        current_position.pY--;
-    } else {
+    if (DIR_IS_POSITIVE(STEPPER_PIN_DIR_Y)) {
         current_position.pY++;
+    } else {
+        current_position.pY--;
     }
-    STEPPER_PORT &= ~(1 << AXIS_BIT_Y);
+    ACTIVATE_STEP(STEPPER_PIN_STEP_Y);
     OCR1B += intervalY;
     OCR3B = TCNT3 + STEP_PULSE_WIDTH_TICKS;
     TIMSK3 |= (1 << OCIE3B);
@@ -173,13 +208,13 @@ ISR(TIMER1_COMPB_vect)
 // Take step on Z
 ISR(TIMER1_COMPC_vect)
 {
-    if (STEPPER_PORT & ((1 << 3)<<AXIS_BIT_Z)) {
-        current_position.pZ--;
-    } else {
+    if (DIR_IS_POSITIVE(STEPPER_PIN_DIR_Z)) {
         current_position.pZ++;
+    } else {
+        current_position.pZ--;
     }
 
-    STEPPER_PORT &= ~(1 << AXIS_BIT_Z);
+    ACTIVATE_STEP(STEPPER_PIN_STEP_Z);
     OCR1C += intervalZ;
     OCR3C = TCNT3 + STEP_PULSE_WIDTH_TICKS;
     TIMSK3 |= (1 << OCIE3C);
@@ -187,12 +222,20 @@ ISR(TIMER1_COMPC_vect)
 
 void movement_enable_steppers()
 {
-    STEPPER_PORT &= ~0x40;
+#if STEPPER_ENABLE_ACTIVE_LOW
+    STEPPER_PORT &= ~(1 << STEPPER_PIN_ENABLE);
+#else
+    STEPPER_PORT |= (1 << STEPPER_PIN_ENABLE);
+#endif
 }
 
 void movement_disable_steppers()
 {
-    STEPPER_PORT |= 0x40;
+#if STEPPER_ENABLE_ACTIVE_LOW
+    STEPPER_PORT |= (1 << STEPPER_PIN_ENABLE);
+#else
+    STEPPER_PORT &= ~(1 << STEPPER_PIN_ENABLE);
+#endif
     if (current_position.state & (1 << STATE_BIT_MOVING)) {
         current_position.state |= (1 << STATE_BIT_LOST);
     }
@@ -200,11 +243,19 @@ void movement_disable_steppers()
 
 void movement_enable_spindle()
 {
-    STEPPER_PORT &= ~0x80;
+#if SPINDLE_ENABLE_ACTIVE_LOW
+    STEPPER_PORT &= ~(1 << STEPPER_PIN_SPINDLE);
+#else
+    STEPPER_PORT |= (1 << STEPPER_PIN_SPINDLE);
+#endif
 }
 
 void movement_disable_spindle()
 {
-    STEPPER_PORT |= 0x80;
+#if SPINDLE_ENABLE_ACTIVE_LOW
+    STEPPER_PORT |= (1 << STEPPER_PIN_SPINDLE);
+#else
+    STEPPER_PORT &= ~(1 << STEPPER_PIN_SPINDLE);
+#endif
 }
 
