@@ -102,13 +102,13 @@ int8_t handle_command()
             break;
 
         case CMD_MOVE_QUEUE: {
-            uint8_t arg[sizeof(struct movement_block)];
             uint8_t seqno = serial_rx();
-            serial_rxb(arg, sizeof(arg));
+            struct movement_block arg;
+            serial_rxb(&arg, sizeof(struct movement_block));
             if (seqno != expected_queue_seqno) {
                 serial_tx(ERR_SEQUENCE);
             } else {
-                int8_t res = movement_push((struct movement_block *)arg);
+                int8_t res = movement_push(&arg);
                 if (res < 0) {
                     serial_tx(ERR_FULL);
                 } else {
@@ -120,12 +120,12 @@ int8_t handle_command()
         } return 0;
 
         case CMD_MOVE_JOG: {
-            uint8_t arg[sizeof(struct movement_block)];
-            serial_rxb(arg, sizeof(arg));
-            if (movement_jog((struct movement_block *)arg) < 0)
+            struct movement_block arg;
+            serial_rxb(&arg, sizeof(struct movement_block));
+            if (movement_jog(&arg) < 0)
                 serial_tx(RES_NAK);
             else
-                serial_tx(RES_NAK);
+                serial_tx(RES_ACK);
         } return 0;
 
         case CMD_ZERO_POSITION:
