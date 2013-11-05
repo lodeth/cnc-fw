@@ -10,26 +10,123 @@
 
 struct position_block current_position;
 
-static uint8_t expected_queue_seqno;
-uint8_t protocol_handle_first_byte(uint8_t byte)
+void timeslice_elapsed()
 {
-    // Was first byte of packet,
-    // handle single byte commands directly or calc expected len
+    static uint8_t status_push_cnt;
+    if (++status_push_cnt == STATUS_PUSH_INTERVAL) {
+        status_push_cnt = 0;
+        serial_tx(MSG_POSITION);
+        serial_tx(STATE_FLAGS);
 
-    switch (byte) {
-        case CMD_NOP: return 0; // Special case, no response at all
-        case CMD_ECHO: break;
+        // Should not need to disable interrupts, since this should be triggered
+        // right after the only code that can modify these values
+        serial_txb(&current_position, sizeof(struct position_block));
+    }
+}
 
-        case CMD_MOVE_STOP:     expected_queue_seqno = 0; movement_stop(STOP_REASON_COMMAND); break;
-        case CMD_MOVE_START:    movement_start(); break;
+int8_t handle_command()
+{
+    if (!serial_poll())
+        return -1;
+    uint8_t command = serial_rx();
+    if (STATE_FLAGS & (1 << STATE_BIT_ESTOP)) {
+        switch (command) {
+            case CMD_NOP:
+                return 0;
 
-        case CMD_MOTORS_ON:     movement_enable_steppers(); break;
-        case CMD_MOTORS_OFF:    movement_disable_steppers(); break;
-        case CMD_SPINDLE_ON:    movement_enable_spindle(); break;
-        case CMD_SPINDLE_OFF:   movement_disable_spindle(); break;
+            case CMD_SET_ESTOP:
+            case CMD_ECHO:
+                serial_tx(RES_ACK);
+                return 0;
 
-        case CMD_MOVE_QUEUE:    return 1 + sizeof(struct movement_block);
-        case CMD_MOVE_JOG:      return sizeof(struct movement_block);
+            case CMD_CLEAR_ESTOP:
+                if ((INPUT_PORT & (1 << INPUT_ESTOP))
+#ifdef INPUT_ESTOP_ACTIVE_LOW
+    !=
+#else
+    ==
+#endif
+                0) {
+                    STATE_FLAGS &= ~(1 << STATE_BIT_ESTOP);
+                    serial_tx(RES_ACK);
+                    return 0;
+                }
+                break;
+            default:
+                break;
+        }
+        serial_tx(RES_ESTOP);
+        return 0;
+    }
+
+    static uint8_t expected_queue_seqno;
+    switch (command) {
+        case CMD_NOP:
+            // Special case, no response at all
+            return 0;
+
+        case CMD_ECHO:
+            break;
+
+        case CMD_CLEAR_ESTOP:
+            break;
+
+        case CMD_SET_ESTOP:
+            expected_queue_seqno = 0;
+            movement_stop(STOP_REASON_ESTOP);
+            break;
+
+        case CMD_MOVE_STOP:
+            expected_queue_seqno = 0;
+            movement_stop(STOP_REASON_COMMAND);
+            break;
+
+        case CMD_MOVE_START:
+            movement_start();
+            break;
+
+        case CMD_MOTORS_ON:
+            movement_enable_steppers();
+            break;
+
+        case CMD_MOTORS_OFF:
+            movement_disable_steppers();
+            break;
+
+        case CMD_SPINDLE_ON:
+            movement_enable_spindle();
+            break;
+
+        case CMD_SPINDLE_OFF:
+            movement_disable_spindle();
+            break;
+
+        case CMD_MOVE_QUEUE: {
+            uint8_t arg[sizeof(struct movement_block)];
+            uint8_t seqno = serial_rx();
+            serial_rxb(arg, sizeof(arg));
+            if (seqno != expected_queue_seqno) {
+                serial_tx(ERR_SEQUENCE);
+            } else {
+                int8_t res = movement_push((struct movement_block *)arg);
+                if (res < 0) {
+                    serial_tx(ERR_FULL);
+                } else {
+                    expected_queue_seqno = seqno + 1;
+                    serial_tx(RES_QUEUED);
+                }
+            }
+            serial_tx(expected_queue_seqno);
+        } return 0;
+
+        case CMD_MOVE_JOG: {
+            uint8_t arg[sizeof(struct movement_block)];
+            serial_rxb(arg, sizeof(arg));
+            if (movement_jog((struct movement_block *)arg) < 0)
+                serial_tx(RES_NAK);
+            else
+                serial_tx(RES_NAK);
+        } return 0;
 
         case CMD_ZERO_POSITION:
             current_position.X = 0;
@@ -40,60 +137,30 @@ uint8_t protocol_handle_first_byte(uint8_t byte)
 
         default:
             serial_tx(RES_NAK);
-            return;
+            return 0;
     }
     serial_tx(RES_ACK);
     return 0;
 }
 
-void protocol_handle_long_command(uint8_t * buffer)
-{
-    uint8_t byte = buffer[0];
-    if (byte == CMD_MOVE_JOG) {
-        movement_jog((struct movement_block *) (buffer + 1));
-        serial_tx(RES_ACK);
-    } else if (byte == CMD_MOVE_QUEUE) {
-        uint8_t seqno = buffer[1];
-        if (seqno != expected_queue_seqno) {
-            serial_tx(ERR_SEQUENCE);
-            serial_tx(expected_queue_seqno);
-        } else {
-            int8_t res = movement_push((struct movement_block *) (buffer + 2));
-            if (res < 0) {
-                serial_tx(ERR_FULL);
-                serial_tx(expected_queue_seqno);
-            } else {
-                expected_queue_seqno = seqno + 1;
-                serial_tx(RES_QUEUED);
-                serial_tx(expected_queue_seqno);
-            }
-        }
-    }
-}
-
-ISR(TIMER0_OVF_vect)
-{
-    static uint8_t cnt;
-    if (++cnt != STATUS_PUSH_INTERVAL)
-        return;
-    cnt = 0;
-    struct position_block tmp;
-    memcpy(&tmp, &current_position, sizeof(struct position_block));
-    serial_tx(MSG_POSITION);
-    serial_tx(STATE_FLAGS);
-    serial_txb(&tmp, sizeof(struct position_block));
-}
-
-
 ISR(INPUT_PCI_vect)
 {
     uint8_t change = INPUT_PIN ^ current_position.inputs;
     current_position.inputs = INPUT_PIN;
-    if (change & ((1 << INPUT_LIMIT_X) | (1 << INPUT_LIMIT_Y) | (1 << INPUT_LIMIT_Z))) {
-        movement_stop(STOP_REASON_LIMIT);
+
+    if ((INPUT_PIN & (1 << INPUT_ESTOP))
+#ifdef INPUT_ESTOP_ACTIVE_LOW
+    ==
+#else
+    !=
+#endif
+    0) {
+        movement_stop(STOP_REASON_ESTOP);
     }
 
-    if (change & (1 << INPUT_PROBE))
+    if (change & ((1 << INPUT_LIMIT_X) | (1 << INPUT_LIMIT_Y) | (1 << INPUT_LIMIT_Z))) {
+        movement_stop(STOP_REASON_LIMIT);
+    } else if (change & (1 << INPUT_PROBE))
         movement_stop(STOP_REASON_PROBE);
 }
 
@@ -111,15 +178,22 @@ int main()
 
     sei();
 
-    TCCR0A = 0;
-    TCCR0B = (5<<CS00);
-    TIMSK0 = (1<<TOIE0);
-
     PCICR |= (1 << INPUT_PCIE);
     INPUT_PCIMSK = 0xff;
 
     serial_tx(MSG_RESET);
 
-    for (;;) { asm volatile("sleep"); }
+    for (;;) {
+        // Wait for an interrupt and check if any flags were set
+        asm volatile("sleep");
+        for (;;) {
+            if (EVENT_FLAGS & (1 << EVENT_TIMESLICE)) {
+                EVENT_FLAGS &= ~(1 << EVENT_TIMESLICE);
+                timeslice_elapsed();
+            }
+            if (handle_command())
+                break;
+        }
+    }
 }
 

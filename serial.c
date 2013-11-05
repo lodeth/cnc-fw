@@ -5,12 +5,13 @@
 #include "protocol.h"
 #include "config.h"
 
-uint8_t protocol_handle_first_byte(uint8_t byte);
-void protocol_handle_long_command(uint8_t * buffer);
-
 static uint8_t transmit_queue_head;
 volatile static uint8_t transmit_queue_tail;
 static uint8_t transmit_queue[SERIAL_TX_QUEUE_SIZE];
+
+volatile static uint8_t receive_queue_head;
+static uint8_t receive_queue_tail;
+static uint8_t receive_queue[SERIAL_RX_QUEUE_SIZE];
 
 void serial_init()
 {
@@ -20,29 +21,48 @@ void serial_init()
     SERIAL_UCSRnB = (1 << SERIAL_RXEN) | (1 << SERIAL_TXEN) | (1 << SERIAL_RXCIE); 
 }
 
-static uint8_t rx_count = 0;
-static uint8_t rx_buffer[SERIAL_RX_BUFFER_SIZE];
-static uint8_t expected_len;
-
 ISR(SERIAL_RX_vect)
 {
     uint8_t byte = SERIAL_UDR;
-    if (rx_count == 0) {
-        expected_len = protocol_handle_first_byte(byte);
-        if (expected_len == 0)
-            return;
-        if (expected_len >= SERIAL_RX_BUFFER_SIZE) {
-            FIRMWARE_PANIC();
-        }
+    uint8_t new_head = (receive_queue_head + 1) & (SERIAL_RX_QUEUE_SIZE - 1);
+    if (new_head == receive_queue_tail) {
+        FIRMWARE_PANIC();
     }
-
-    rx_buffer[rx_count++] = byte;
-    if (rx_count <= expected_len)
-        return;
-    rx_count = 0;
-    protocol_handle_long_command(rx_buffer);
+    receive_queue[receive_queue_head] = byte;
+    receive_queue_head = new_head;
 }
 
+uint8_t serial_poll()
+{
+    if (receive_queue_head == receive_queue_tail)
+        return 0;
+    else
+        return 1;
+}
+
+uint8_t serial_rx()
+{
+    while (receive_queue_head == receive_queue_tail) {
+        uint8_t flg = SREG;
+        sei();
+        asm volatile("sleep");
+        SREG = flg;
+    }
+    uint8_t res = receive_queue[receive_queue_tail];
+    receive_queue_tail++;
+    if (receive_queue_tail == SERIAL_RX_QUEUE_SIZE)
+        receive_queue_tail = 0;
+    return res;
+}
+
+void serial_rxb(void * byte, uint8_t len)
+{
+    uint8_t * p = (uint8_t *) byte;
+    while (len--) {
+        *p = serial_rx();
+        p++;
+    }
+}
 
 void serial_txb(void * byte, uint8_t len)
 {

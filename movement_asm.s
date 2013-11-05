@@ -9,7 +9,7 @@
 .type	\VECTOR, @function
 \VECTOR:
     // Deassert stepper bit
-#if STEPPER_STEP_ACTIVE_LOW
+#ifdef STEPPER_STEP_ACTIVE_LOW
     sbi _SFR_IO_ADDR(STEPPER_PORT), \STEP_BIT
 #else
     cbi _SFR_IO_ADDR(STEPPER_PORT), \STEP_BIT

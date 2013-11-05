@@ -14,10 +14,10 @@
         #define STATE_BIT_BUFFER_FULL  1  /* 0x02 Motion buffer full */
         #define STATE_BIT_MOVING       2  /* 0x04 Machine is moving */
         #define STATE_BIT_RUNNING      3  /* 0x08 Motion stream is being processed */
-        #define STATE_BIT_LOST         4  /* 0x10 Machine was moving while motion was stopped */
-        #define STATE_BIT_RES1         5  /* 0x20 */
-        #define STATE_BIT_RES2         6  /* 0x40 */
-        #define STATE_BIT_RES3         7  /* 0x80 */
+        #define STATE_BIT_JOGGING      4  /* 0x10 Machine is jogging */
+        #define STATE_BIT_RES2         5  /* 0x20 */
+        #define STATE_BIT_LOST         6  /* 0x40 Machine was moving while motion was stopped */
+        #define STATE_BIT_ESTOP        7  /* 0x80 Machine is halted because ESTOP was triggered */
        
         enum stop_reason_enum {
             STOP_REASON_NONE,
@@ -26,6 +26,7 @@
             STOP_REASON_UNDERRUN,
             STOP_REASON_LIMIT,
             STOP_REASON_PROBE,
+            STOP_REASON_ESTOP,
             STOP_REASON_MAX,
         };
 
@@ -39,18 +40,13 @@
             int32_t Z;
         } __attribute__((packed));
 
-    // Limit switch tripped, motion halted
-    #define MSG_LIMIT_TRIPPED   0xF3
-
-    // Probe switch tripped, motion halted
-    #define MSG_PROBE_TRIPPED   0xF4
-
     // Internal error, system in panic mode
     #define MSG_FIRMWARE_PANIC  0xEE
 
 // Generic responses
-#define RES_ACK 0x01
-#define RES_NAK 0x02
+#define RES_ACK   0x01
+#define RES_NAK   0x02
+#define RES_ESTOP 0x03
 
 // Generic commands
 #define CMD_NOP         0x00
@@ -77,9 +73,9 @@
 
 struct movement_block
 {
-    int8_t  nX;
-    int8_t  nY;
-    int8_t  nZ;
+    int8_t  X;
+    int8_t  Y;
+    int8_t  Z;
 } __attribute__((packed));
 
 #define CMD_MOVE_QUEUE  0x08
@@ -94,6 +90,12 @@ struct movement_block
 
 // Reset machine coordinates to zero
 #define CMD_ZERO_POSITION 0x0a
+
+// Clear ESTOP
+#define CMD_CLEAR_ESTOP   0x0b
+
+// Set ESTOP
+#define CMD_SET_ESTOP     0x0c
 
 // Defined here because this is a common file
 #define FIRMWARE_PANIC() for (;;) { cli(); UDR1 = MSG_FIRMWARE_PANIC; UDR0 = MSG_FIRMWARE_PANIC; }
