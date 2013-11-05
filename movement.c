@@ -177,7 +177,9 @@ int8_t movement_jog(struct movement_block * op)
 
 ISR(TIMER3_OVF_vect)
 {
-    EVENT_FLAGS |= (1 << EVENT_TIMESLICE);
+    if ((STATE_FLAGS & (1 << STATE_BIT_RUNNING)) == 0)
+        EVENT_FLAGS |= (1 << EVENT_TIMESLICE);
+
     if ((STATE_FLAGS & (1 << STATE_BIT_JOGGING)) == 0)
         return;
 
@@ -202,6 +204,7 @@ ISR(TIMER3_OVF_vect)
         jog_movement.Z++;
 
     movement_set(&jog_movement);
+    TIMSK3 |= (1 << TOIE3);
 }
 
 static void movement_set(struct movement_block * next_op)

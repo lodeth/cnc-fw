@@ -29,82 +29,71 @@ int8_t handle_command()
     if (!serial_poll())
         return -1;
     uint8_t command = serial_rx();
-    if (STATE_FLAGS & (1 << STATE_BIT_ESTOP)) {
-        switch (command) {
-            case CMD_NOP:
-                return 0;
 
-            case CMD_SET_ESTOP:
-            case CMD_ECHO:
-                serial_tx(RES_ACK);
-                return 0;
+    uint8_t ESTOP = (STATE_FLAGS & (1 << STATE_BIT_ESTOP)) != 0;
 
-            case CMD_CLEAR_ESTOP:
-                if ((INPUT_PORT & (1 << INPUT_ESTOP))
-#ifdef INPUT_ESTOP_ACTIVE_LOW
-    !=
-#else
-    ==
-#endif
-                0) {
-                    STATE_FLAGS &= ~(1 << STATE_BIT_ESTOP);
-                    serial_tx(RES_ACK);
-                    return 0;
-                }
-                break;
-            default:
-                break;
-        }
-        serial_tx(RES_ESTOP);
-        return 0;
-    }
+    uint8_t res = ESTOP ? RES_ESTOP : RES_ACK;
 
     static uint8_t expected_queue_seqno;
     switch (command) {
         case CMD_NOP:
             // Special case, no response at all
             return 0;
-
-        case CMD_ECHO:
-            break;
-
-        case CMD_CLEAR_ESTOP:
+        case CMD_PING:
+            res = RES_ACK;
             break;
 
         case CMD_SET_ESTOP:
             expected_queue_seqno = 0;
             movement_stop(STOP_REASON_ESTOP);
+            res = RES_ACK;
+            break;
+
+        case CMD_CLEAR_ESTOP:
+            #ifdef INPUT_ESTOP_ACTIVE_LOW
+            if ((INPUT_PORT & (1 << INPUT_ESTOP)) != 0)
+            #else
+            if ((INPUT_PORT & (1 << INPUT_ESTOP)) == 0)
+            #endif
+            {
+                STATE_FLAGS &= ~(1 << STATE_BIT_ESTOP);
+                res = RES_ACK;
+            } else {
+                res = RES_NAK;
+            }
             break;
 
         case CMD_MOVE_STOP:
             expected_queue_seqno = 0;
-            movement_stop(STOP_REASON_COMMAND);
+            if (!ESTOP) movement_stop(STOP_REASON_COMMAND);
             break;
 
         case CMD_MOVE_START:
-            movement_start();
+            if (!ESTOP) movement_start();
             break;
 
         case CMD_MOTORS_ON:
-            movement_enable_steppers();
+            if (!ESTOP) movement_enable_steppers();
             break;
 
         case CMD_MOTORS_OFF:
-            movement_disable_steppers();
+            if (!ESTOP) movement_disable_steppers();
             break;
 
         case CMD_SPINDLE_ON:
-            movement_enable_spindle();
+            if (!ESTOP) movement_enable_spindle();
             break;
 
         case CMD_SPINDLE_OFF:
-            movement_disable_spindle();
+            if (!ESTOP) movement_disable_spindle();
             break;
 
         case CMD_MOVE_QUEUE: {
             uint8_t seqno = serial_rx();
             struct movement_block arg;
             serial_rxb(&arg, sizeof(struct movement_block));
+            if (ESTOP) break;
+
             if (seqno != expected_queue_seqno) {
                 serial_tx(ERR_SEQUENCE);
             } else {
@@ -117,18 +106,21 @@ int8_t handle_command()
                 }
             }
             serial_tx(expected_queue_seqno);
-        } return 0;
+            return 0;
+        }
 
         case CMD_MOVE_JOG: {
             struct movement_block arg;
             serial_rxb(&arg, sizeof(struct movement_block));
-            if (movement_jog(&arg) < 0)
-                serial_tx(RES_NAK);
-            else
-                serial_tx(RES_ACK);
-        } return 0;
+            if (ESTOP) break;
 
-        case CMD_ZERO_POSITION:
+            if (movement_jog(&arg) < 0)
+                res = RES_NAK;
+        } break;
+
+        case CMD_SET_ZERO_POS:
+            if (ESTOP) break;
+
             current_position.X = 0;
             current_position.Y = 0;
             current_position.Z = 0;
@@ -136,10 +128,10 @@ int8_t handle_command()
             break;
 
         default:
-            serial_tx(RES_NAK);
+            serial_tx(RES_UNKNOWN);
             return 0;
     }
-    serial_tx(RES_ACK);
+    serial_tx(res);
     return 0;
 }
 
