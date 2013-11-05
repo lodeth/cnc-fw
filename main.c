@@ -180,8 +180,7 @@ int main()
     INPUT_PORT = 0xff;
     current_position.inputs = INPUT_PIN;
 
-    DDRD = 0x03;
-    PORTD = 0x01;
+    DDRB = 0x80;
 
     sei();
 
@@ -203,6 +202,11 @@ int main()
         asm volatile("sleep");
         if ((EVENT_FLAGS & (1 << EVENT_TIMESLICE)) == 0)
             continue;
+        if ((STATE_FLAGS & (1 << STATE_BIT_ESTOP)) == 0)
+            PORTB ^= 0x80;
+        else
+            PORTB |= 0x80;
+            
         for (;;) {
             if (handle_command())
                 break;
