@@ -6,8 +6,9 @@
 //  General configuration for magic values
 //
 // -----------------------------------------------------------------
-    // Timeslice of motion. Selects base value for the speeds
-    // Note that this affects the pulse width tick value also
+
+// Timeslice of motion. Selects base value for the speeds
+// Note that this affects the pulse width tick value also
         // CPU clock divisor 1
         // Actual timeslice of motion 4.096 ms
         // Pulse width base 62.5 ns
@@ -19,51 +20,53 @@
 
     #define MOVEMENT_TIMESLICE TIMESLICE_32MS
 
-    // This is multiplied with the pulse width base value to get the
-    // stepping pulse width.
+// This is multiplied with the pulse width base value to get the
+// stepping pulse width.
     #define STEP_PULSE_WIDTH_TICKS      20
 
-    // Number of timeslices before sending the status
+// Number of timeslices before sending the status
     #define STATUS_PUSH_INTERVAL        10
 
-    // Select USART to use
-//    #define USE_USART0
+// Select USART to use
+    // #define USE_USART0
     #define USE_USART1
-//    #define USE_USART2
-//    #define USE_USART3
+    // #define USE_USART2
+    // #define USE_USART3
 
-    // Set ESTOP flag after reset. Comment to disable
+// Set ESTOP flag after reset. Comment to disable
     #define ESTOP_AFTER_RESET
 
-    // Please keep these a power of two or hilarity ensues (value <= 256)
+// Please keep these a power of two or hilarity ensues (value <= 256)
     #define SERIAL_TX_QUEUE_SIZE        64
     #define SERIAL_RX_QUEUE_SIZE        64
 
-    // Please keep this a power of two or hilarity ensues (value <= 256)
+// Please keep this a power of two or hilarity ensues (value <= 256)
     #define MOVEMENT_QUEUE_SIZE         256
 
 // -----------------------------------------------------------------
 //
 //  Configuration for inputs
 //
+//      BOTH asserting or deasserting a limit or probe signal stop the
+//      machine. This behaviour makes homing easier.
+//
+//      Pull-ups are enabled, so whether you use normally closed switches
+//      or not, you should wire them to the ground. I'd recommend that
+//      you use them so a wire failure will trip the limit.
+//
+//      Default values result in the following:
+//          LIMIT_X  = PK.0
+//          LIMIT_Y  = PK.1
+//          LIMIT_Z  = PK.2
+//          PROBE    = PK.3
+//          ESTOP    = PK.4
+//
 // -----------------------------------------------------------------
-    // Default values result in the following:
-    //    LIMIT_X  = PK.0
-    //    LIMIT_Y  = PK.1
-    //    LIMIT_Z  = PK.2
-    //    PROBE    = PK.3
-    //    ESTOP    = PK.4
 
-    // BOTH asserting or deasserting a limit or probe signal stop the
-    // machine. This behaviour makes homing easier.
-
-    // Pull-ups are enabled, so whether you use normally closed switches
-    // or not, you should wire them to the ground. I'd recommend that
-    // you use them so a wire failure will trip the limit.
-
-    // Input polarity for ESTOP. CMD_CLEAR_ESTOP is rejected if ESTOP is active.
+// Input polarity for ESTOP. CMD_CLEAR_ESTOP is rejected if ESTOP is active.
     // #define INPUT_ESTOP_ACTIVE_LOW
 
+// Port definition
     #define INPUT_PORT          PORTK
     #define INPUT_DDR           DDRK
     #define INPUT_PIN           PINK
@@ -71,6 +74,7 @@
     #define INPUT_PCIMSK        PCMSK2
     #define INPUT_PCI_vect      PCINT2_vect
 
+// Pin definitions
     #define INPUT_LIMIT_X       0
     #define INPUT_LIMIT_Y       1
     #define INPUT_LIMIT_Z       2
@@ -81,36 +85,37 @@
 //
 //  Configuration for motor outputs
 //
+//      Default values result in the following:
+//          /STEP_X  = PF.0
+//          /STEP_Y  = PF.1
+//          /STEP_Z  = PF.2
+//          /DIR_X   = PF.3
+//          /DIR_Y   = PF.4
+//          /DIR_Z   = PF.5
+//          /ENABLE  = PF.6
+//          /SPINDLE = PF.7
+//
 // -----------------------------------------------------------------
-    //
-    // Default values result in the following:
-    //    STEP_X  = PF.0
-    //    STEP_Y  = PF.1
-    //    STEP_Z  = PF.2
-    //    DIR_X   = PF.3
-    //    DIR_Y   = PF.4
-    //    DIR_Z   = PF.5
-    //    ENABLE  = PF.6
-    //    SPINDLE = PF.7
 
-    #define STEPPER_PORT            PORTF
-    #define STEPPER_DDR             DDRF
-
-    // Signal polarity, comment to disable
+// Signal polarity, comment to disable
     #define STEPPER_ENABLE_ACTIVE_LOW
     #define STEPPER_SPINDLE_ACTIVE_LOW
     #define STEPPER_STEP_ACTIVE_LOW
     #define STEPPER_DIR_POSITIVE_LOW
 
-    // Signal port pins
-    #define STEPPER_PIN_STEP_X          0
-    #define STEPPER_PIN_STEP_Y          1
-    #define STEPPER_PIN_STEP_Z          2
-    #define STEPPER_PIN_DIR_X           3
-    #define STEPPER_PIN_DIR_Y           4
-    #define STEPPER_PIN_DIR_Z           5
-    #define STEPPER_PIN_ENABLE          6
-    #define STEPPER_PIN_SPINDLE         7
+// Port definition
+    #define STEPPER_PORT        PORTF
+    #define STEPPER_DDR         DDRF
+
+// Pin definitions
+    #define STEPPER_PIN_STEP_X  0
+    #define STEPPER_PIN_STEP_Y  1
+    #define STEPPER_PIN_STEP_Z  2
+    #define STEPPER_PIN_DIR_X   3
+    #define STEPPER_PIN_DIR_Y   4
+    #define STEPPER_PIN_DIR_Z   5
+    #define STEPPER_PIN_ENABLE  6
+    #define STEPPER_PIN_SPINDLE 7
 
 // -----------------------------------------------------------------
 //
@@ -118,6 +123,7 @@
 //  There shouldn't be any need to change these normally
 //
 // -----------------------------------------------------------------
+
 #ifdef USE_USART0
     #define SERIAL_UDRE_vect        USART0_UDRE_vect
     #define SERIAL_RX_vect          USART0_RX_vect

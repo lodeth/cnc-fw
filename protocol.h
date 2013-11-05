@@ -4,7 +4,6 @@
 #include <stdint.h>
 
 // Notifications pushed from the device to host
-
     // Sent upon device reset
     #define MSG_RESET           0xF0
 
