@@ -94,7 +94,7 @@ void movement_stop(uint8_t reason)
         if (STATE_FLAGS & (1 << STATE_BIT_MOVING))
             STATE_FLAGS |= (1 << STATE_BIT_LOST);
         if (reason == STOP_REASON_ESTOP) {
-            STATE_FLAGS |= STATE_BIT_ESTOP;
+            STATE_FLAGS |= (1 << STATE_BIT_ESTOP);
             movement_disable_steppers();
             movement_disable_spindle();
         }

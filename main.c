@@ -25,6 +25,23 @@ static void send_status()
 
 void timeslice_elapsed()
 {
+    uint16_t blink_speed;
+    if (STATE_FLAGS & (1 << STATE_BIT_ESTOP)) 
+        blink_speed = 0x01;
+    else if (STATE_FLAGS & (1 << STATE_BIT_RUNNING))
+        blink_speed = 0x10;
+    else
+        blink_speed = 0x30;
+
+#if MOVEMENT_TIMESLICE == TIMESLICE_4MS
+    blink_speed *= 8;
+#endif
+
+    static uint16_t blinker = 0;
+    if (blinker++ > blink_speed) {
+        PORTB ^= 0x80;
+        blinker = 0;
+    }
 
 #ifdef STATUS_PUSH_INTERVAL
     static uint8_t status_push_cnt;
@@ -196,24 +213,13 @@ int main()
     0) { movement_stop(STOP_REASON_ESTOP); }
 
     serial_tx(MSG_RESET);
-
     for (;;) {
-        // Wait for an interrupt and check if any flags were set
-        asm volatile("sleep");
-        if ((EVENT_FLAGS & (1 << EVENT_TIMESLICE)) == 0)
-            continue;
-        if ((STATE_FLAGS & (1 << STATE_BIT_ESTOP)) == 0)
-            PORTB ^= 0x80;
-        else
-            PORTB |= 0x80;
-            
-        for (;;) {
-            if (handle_command())
-                break;
-            if (EVENT_FLAGS & (1 << EVENT_TIMESLICE)) {
-                EVENT_FLAGS &= ~(1 << EVENT_TIMESLICE);
-                timeslice_elapsed();
-            }
+        if (!handle_command()) {
+            asm volatile("sleep");
+        }
+        if (EVENT_FLAGS & (1 << EVENT_TIMESLICE)) {
+            EVENT_FLAGS &= ~(1 << EVENT_TIMESLICE);
+            timeslice_elapsed();
         }
     }
 }
