@@ -61,7 +61,6 @@ int8_t handle_command()
 
     uint8_t res = ESTOP ? RES_ESTOP : RES_ACK;
 
-    static uint8_t expected_queue_seqno;
     switch (command) {
         case CMD_NOP:
             // Special case, no response at all
@@ -74,7 +73,6 @@ int8_t handle_command()
             break;
 
         case CMD_SET_ESTOP:
-            expected_queue_seqno = 0;
             movement_stop(STOP_REASON_ESTOP);
             res = RES_ACK;
             break;
@@ -98,7 +96,6 @@ int8_t handle_command()
             return 0;
 
         case CMD_MOVE_STOP:
-            expected_queue_seqno = 0;
             if (!ESTOP) movement_stop(STOP_REASON_COMMAND);
             break;
 
@@ -123,23 +120,15 @@ int8_t handle_command()
             break;
 
         case CMD_MOVE_QUEUE: {
-            uint8_t seqno = serial_rx();
             struct movement_block arg;
             serial_rxb(&arg, sizeof(struct movement_block));
             if (ESTOP) break;
-
-            if (seqno != expected_queue_seqno) {
-                serial_tx(ERR_SEQUENCE);
+            int8_t res = movement_push(&arg);
+            if (res < 0) {
+                serial_tx(ERR_FULL);
             } else {
-                int8_t res = movement_push(&arg);
-                if (res < 0) {
-                    serial_tx(ERR_FULL);
-                } else {
-                    expected_queue_seqno = seqno + 1;
-                    serial_tx(RES_QUEUED);
-                }
+                serial_tx(RES_ACK);
             }
-            serial_tx(expected_queue_seqno);
             return 0;
         }
 
@@ -147,7 +136,6 @@ int8_t handle_command()
             struct movement_block arg;
             serial_rxb(&arg, sizeof(struct movement_block));
             if (ESTOP) break;
-
             if (movement_jog(&arg) < 0)
                 res = RES_NAK;
         } break;

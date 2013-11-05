@@ -123,17 +123,12 @@ struct movement_block {
 
 // Queue movement for execution
 //  Parameters:
-//      uint8_t : sequence number of movement mod 256
 //      struct movement_block
 //  Response:
 //      RES_QUEUED   - the command was accepted to queue
 //      ERR_FULL     - not queued, buffer is full
-//      ERR_SEQUENCE - not queued, sequence number mismatch
-//  all responses are followed by uint8_t sequence number of the NEXT EXPECTED movement
 #define CMD_MOVE_QUEUE      0x23
-    #define RES_QUEUED          0x20
-    #define ERR_FULL            0x21
-    #define ERR_SEQUENCE        0x22
+    #define ERR_FULL            0x20
 
 // Defined here because this is a common file
 #define FIRMWARE_PANIC() for (;;) { cli(); UDR1 = MSG_FIRMWARE_PANIC; UDR0 = MSG_FIRMWARE_PANIC; }
