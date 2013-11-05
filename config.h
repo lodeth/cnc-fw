@@ -59,12 +59,12 @@
 //          LIMIT_Y  = PK.1
 //          LIMIT_Z  = PK.2
 //          PROBE    = PK.3
-//          ESTOP    = PK.4
+//          /ESTOP   = PK.4
 //
 // -----------------------------------------------------------------
 
 // Input polarity for ESTOP. CMD_CLEAR_ESTOP is rejected if ESTOP is active.
-    // #define INPUT_ESTOP_ACTIVE_LOW
+    #define INPUT_ESTOP_ACTIVE_LOW
 
 // Port definition
     #define INPUT_PORT          PORTK
