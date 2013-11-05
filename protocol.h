@@ -66,9 +66,11 @@
 // ---------------------------------------------------------------------------------------------------
 
 #define CMD_NOP             0x00    /* Do nothing. Won't even send an ACK */
-#define CMD_PING            0x01    /* Do nothing but send an ACK */
+#define CMD_PING            0x01    /* Do nothing but send an RES_PING */
+    #define RES_PING            0x0F
 #define CMD_SET_ESTOP       0x02    /* Set ESTOP condition */
 #define CMD_CLEAR_ESTOP     0x03    /* Attempt to clear ESTOP condition. */
+#define CMD_GET_STATE       0x04    /* Request status from machine */
 
 // ---------------------------------------------------------------------------------------------------
 //

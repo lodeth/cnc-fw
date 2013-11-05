@@ -10,18 +10,24 @@
 
 struct position_block current_position;
 
+static void send_status()
+{
+    serial_tx(MSG_POSITION);
+    serial_tx(STATE_FLAGS);
+    // Should not need to disable interrupts, since this should be triggered
+    // right after the only code that can modify these values
+    serial_txb(&current_position, sizeof(struct position_block));
+}
+
 void timeslice_elapsed()
 {
+
+#ifdef STATUS_PUSH_INTERVAL
     static uint8_t status_push_cnt;
     if (++status_push_cnt == STATUS_PUSH_INTERVAL) {
         status_push_cnt = 0;
-        serial_tx(MSG_POSITION);
-        serial_tx(STATE_FLAGS);
-
-        // Should not need to disable interrupts, since this should be triggered
-        // right after the only code that can modify these values
-        serial_txb(&current_position, sizeof(struct position_block));
     }
+#endif
 }
 
 int8_t handle_command()
@@ -40,7 +46,7 @@ int8_t handle_command()
             // Special case, no response at all
             return 0;
         case CMD_PING:
-            res = RES_ACK;
+            res = RES_PING;
             break;
 
         case CMD_SET_ESTOP:
@@ -62,6 +68,10 @@ int8_t handle_command()
                 res = RES_NAK;
             }
             break;
+
+        case CMD_GET_STATE:
+            send_status();
+            return 0;
 
         case CMD_MOVE_STOP:
             expected_queue_seqno = 0;
@@ -184,13 +194,15 @@ int main()
     for (;;) {
         // Wait for an interrupt and check if any flags were set
         asm volatile("sleep");
+        if ((EVENT_FLAGS & (1 << EVENT_TIMESLICE)) == 0)
+            continue;
         for (;;) {
+            if (handle_command())
+                break;
             if (EVENT_FLAGS & (1 << EVENT_TIMESLICE)) {
                 EVENT_FLAGS &= ~(1 << EVENT_TIMESLICE);
                 timeslice_elapsed();
             }
-            if (handle_command())
-                break;
         }
     }
 }

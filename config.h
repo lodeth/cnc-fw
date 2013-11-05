@@ -25,7 +25,9 @@
     #define STEP_PULSE_WIDTH_TICKS      20
 
 // Number of timeslices before sending the status
-    #define STATUS_PUSH_INTERVAL        10
+// Zero means 256
+// Comment out to disable entirely
+    //#define STATUS_PUSH_INTERVAL        10
 
 // Select USART to use
     // #define USE_USART0
