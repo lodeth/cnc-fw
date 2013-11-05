@@ -125,7 +125,6 @@ struct movement_block {
 //  Parameters:
 //      struct movement_block
 //  Response:
-//      RES_QUEUED   - the command was accepted to queue
 //      ERR_FULL     - not queued, buffer is full
 #define CMD_MOVE_QUEUE      0x23
     #define ERR_FULL            0x20
