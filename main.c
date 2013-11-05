@@ -154,9 +154,7 @@ ISR(INPUT_PCI_vect)
 #else
     !=
 #endif
-    0) {
-        movement_stop(STOP_REASON_ESTOP);
-    }
+    0) { movement_stop(STOP_REASON_ESTOP); }
 
     if (change & ((1 << INPUT_LIMIT_X) | (1 << INPUT_LIMIT_Y) | (1 << INPUT_LIMIT_Z))) {
         movement_stop(STOP_REASON_LIMIT);
@@ -180,6 +178,14 @@ int main()
 
     PCICR |= (1 << INPUT_PCIE);
     INPUT_PCIMSK = 0xff;
+
+    if ((INPUT_PIN & (1 << INPUT_ESTOP))
+#ifdef INPUT_ESTOP_ACTIVE_LOW
+    ==
+#else
+    !=
+#endif
+    0) { movement_stop(STOP_REASON_ESTOP); }
 
     serial_tx(MSG_RESET);
 
