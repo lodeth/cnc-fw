@@ -11,12 +11,8 @@ PROGTTY    = /dev/tty.usbmodemfd121
 CFLAGS     = -Wall -Os -I.
 OBJECTS    = main.o movement.o movement_asm.o precalc.o serial.o
 
-
-
-
-
 PROGCMD    = $(AVRDUDE) -B10 -p $(DEVICE) -c $(PROGDEV) -P $(PROGTTY)
-COMPILE    = $(CC) -DF_CPU=$(FREQ) -mmcu=$(DEVICE) 
+COMPILE    = $(CC) $(CFLAGS) -DF_CPU=$(FREQ) -mmcu=$(DEVICE) 
 
 all:	main.hex
 
