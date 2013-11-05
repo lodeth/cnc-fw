@@ -9,7 +9,7 @@
 #include "serial.h"
 
 #ifdef CLIENT_INCLUDE
-#error Something went wrong. Protocol header contains client definitions
+    #error Something went wrong. Protocol header contains client definitions
 #endif
 
 struct position_block current_position;
