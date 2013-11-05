@@ -43,6 +43,7 @@
         STOP_REASON_MAX,
     };
 
+#pragma pack(push, 1)
     struct position_block
     {
 #ifdef CLIENT_INCLUDE
@@ -54,6 +55,7 @@
         int32_t Y;
         int32_t Z;
     } PACKED_STRUCT;
+#pragma pack(pop)
 
 // Internal error, system in panic mode
 #define MSG_FIRMWARE_PANIC  0xEE
@@ -103,11 +105,13 @@
 //
 // ---------------------------------------------------------------------------------------------------
 
+#pragma pack(push, 1)
 struct movement_block {
     int8_t  X;
     int8_t  Y;
     int8_t  Z;
 } PACKED_STRUCT; 
+#pragma pack(pop)
 
 #define CMD_MOVE_STOP       0x20    /* Start processing queued movement commands */
 #define CMD_MOVE_START      0x21    /* Stop movement */
