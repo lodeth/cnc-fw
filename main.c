@@ -45,8 +45,11 @@ int8_t handle_command()
         case CMD_NOP:
             // Special case, no response at all
             return 0;
-        case CMD_PING:
-            res = RES_PING;
+        case CMD_PING1:
+            res = RES_PING1;
+            break;
+        case CMD_PING2:
+            res = RES_PING2;
             break;
 
         case CMD_SET_ESTOP:
