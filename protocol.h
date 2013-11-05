@@ -3,6 +3,14 @@
 
 #include <stdint.h>
 
+#ifndef __AVR__
+#define CLIENT_INCLUDE
+#endif
+
+#ifdef __GNUC__
+#define PACKED_STRUCT __attribute__((packed))
+#endif
+
 // ---------------------------------------------------------------------------------------------------
 //
 //  Notifications pushed from the device to host
@@ -37,13 +45,15 @@
 
     struct position_block
     {
-        //uint8_t state - actually saved in GPIOR0
+#ifdef CLIENT_INCLUDE
+        uint8_t state;  // saved in GPIOR0 on AVR
+#endif
         uint8_t inputs;
         uint8_t stop_reason;
         int32_t X;
         int32_t Y;
         int32_t Z;
-    } __attribute__((packed));
+    } PACKED_STRUCT;
 
 // Internal error, system in panic mode
 #define MSG_FIRMWARE_PANIC  0xEE
@@ -97,7 +107,7 @@ struct movement_block {
     int8_t  X;
     int8_t  Y;
     int8_t  Z;
-} __attribute__((packed));
+} PACKED_STRUCT; 
 
 #define CMD_MOVE_STOP       0x20    /* Start processing queued movement commands */
 #define CMD_MOVE_START      0x21    /* Stop movement */
