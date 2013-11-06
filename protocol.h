@@ -24,10 +24,10 @@
 // Machine position update push
 #define MSG_POSITION        0xF1
     #define STATE_BIT_BUFFER_EMPTY 0  /* 0x01 Motion buffer empty */
-    #define STATE_BIT_BUFFER_FULL  1  /* 0x02 Motion buffer full */
-    #define STATE_BIT_MOVING       2  /* 0x04 Machine is moving */
-    #define STATE_BIT_RUNNING      3  /* 0x08 Motion stream is being processed */
-    #define STATE_BIT_JOGGING      4  /* 0x10 Machine is jogging */
+    #define STATE_BIT_MOVING       1  /* 0x02 Machine is moving */
+    #define STATE_BIT_RUNNING      2  /* 0x04 Motion stream is being processed */
+    #define STATE_BIT_JOGGING      3  /* 0x08 Machine is jogging */
+    #define STATE_BIT_RES1         4  /* 0x10 */
     #define STATE_BIT_RES2         5  /* 0x20 */
     #define STATE_BIT_LOST         6  /* 0x40 Machine was moving while motion was stopped */
     #define STATE_BIT_ESTOP        7  /* 0x80 Machine is halted because ESTOP was triggered */
@@ -49,6 +49,7 @@
 #ifdef CLIENT_INCLUDE
         uint8_t state;  // saved in GPIOR0 on AVR
 #endif
+        uint8_t tag;    // tag of active movement
         uint8_t inputs;
         uint8_t stop_reason;
         int32_t X;
@@ -110,6 +111,7 @@ struct movement_block {
     int8_t  X;
     int8_t  Y;
     int8_t  Z;
+    int8_t  tag;
 } PACKED_STRUCT; 
 #pragma pack(pop)
 

@@ -101,7 +101,6 @@ void movement_stop(uint8_t reason)
     }
 
     STATE_FLAGS |=  (1 << STATE_BIT_BUFFER_EMPTY);
-    STATE_FLAGS &= ~(1 << STATE_BIT_BUFFER_FULL);
     STATE_FLAGS &= ~(1 << STATE_BIT_MOVING);
     STATE_FLAGS &= ~(1 << STATE_BIT_RUNNING);
     STATE_FLAGS &= ~(1 << STATE_BIT_JOGGING);
@@ -125,7 +124,6 @@ int8_t movement_push(struct movement_block * op)
 {
     uint8_t new_head = (movement_queue_head + 1) & (MOVEMENT_QUEUE_SIZE - 1);
     if (new_head == movement_queue_tail) {
-        STATE_FLAGS |= (1 << STATE_BIT_BUFFER_FULL);
         return -1;
     }
 
@@ -152,7 +150,6 @@ ISR(TIMER1_OVF_vect)
     movement_queue_tail++;
     if (movement_queue_tail == MOVEMENT_QUEUE_SIZE)
         movement_queue_tail = 0;
-    STATE_FLAGS &= ~(1 << STATE_BIT_BUFFER_FULL);
     EVENT_FLAGS |= (1 << EVENT_TIMESLICE);
 }
 
@@ -220,6 +217,7 @@ static void movement_set(struct movement_block * next_op)
     intervalZ = pgm_read_word(&pulse_timings[abs(next_op->Z)]);
     OCR1C = intervalZ;
 
+    current_position.tag = next_op->tag;
     uint8_t newport = (STEPPER_PORT & ((1 << STEPPER_PIN_ENABLE)
                                      | (1 << STEPPER_PIN_SPINDLE)))
 #ifdef STEPPER_STEP_ACTIVE_LOW
