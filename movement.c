@@ -167,6 +167,7 @@ int8_t movement_jog(struct movement_block * op)
         memset(&jog_movement, 0, sizeof(struct movement_block));
     }
     memcpy(&jog_target_speed, op, sizeof(struct movement_block));
+    jog_movement.tag = jog_target_speed.tag;
     flush_steps_taken();
     STATE_FLAGS |= (1 << STATE_BIT_JOGGING);
     return 0;
