@@ -123,11 +123,12 @@ int8_t handle_command()
             struct movement_block arg;
             serial_rxb(&arg, sizeof(struct movement_block));
             if (ESTOP) break;
-            int8_t res = movement_push(&arg);
+            int16_t res = movement_push(&arg);
             if (res < 0) {
                 serial_tx(ERR_FULL);
             } else {
-                serial_tx(RES_ACK);
+                serial_tx(RES_QUEUED);
+                serial_tx((uint8_t)res);
             }
             return 0;
         }
@@ -200,7 +201,6 @@ int main()
 #endif
     0) { movement_stop(STOP_REASON_ESTOP); }
 
-    serial_tx(MSG_RESET);
     for (;;) {
         if (!handle_command()) {
             asm volatile("sleep");

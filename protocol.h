@@ -9,6 +9,8 @@
 
 #ifdef __GNUC__
 #define PACKED_STRUCT __attribute__((packed))
+#else
+#define PACKED_STRUCT
 #endif
 
 // ---------------------------------------------------------------------------------------------------
@@ -17,9 +19,6 @@
 //      Fields are little endian
 //
 // ---------------------------------------------------------------------------------------------------
-
-// Sent upon device reset
-#define MSG_RESET           0xF0
 
 // Machine position update push
 #define MSG_POSITION        0xF1
@@ -111,7 +110,6 @@ struct movement_block {
     int8_t  X;
     int8_t  Y;
     int8_t  Z;
-    int8_t  tag;
 } PACKED_STRUCT; 
 #pragma pack(pop)
 
@@ -127,9 +125,11 @@ struct movement_block {
 //  Parameters:
 //      struct movement_block
 //  Response:
+//      RES_QUEUED   - move queued, followed by uint8_t tag of the move
 //      ERR_FULL     - not queued, buffer is full
 #define CMD_MOVE_QUEUE      0x23
-    #define ERR_FULL            0x20
+    #define RES_QUEUED          0x20
+    #define ERR_FULL            0x21
 
 // Defined here because this is a common file
 #define FIRMWARE_PANIC() for (;;) { cli(); UDR1 = MSG_FIRMWARE_PANIC; UDR0 = MSG_FIRMWARE_PANIC; }

@@ -120,7 +120,7 @@ void movement_start()
     current_position.stop_reason = STOP_REASON_NONE;
 }
 
-int8_t movement_push(struct movement_block * op)
+int16_t movement_push(struct movement_block * op)
 {
     uint8_t new_head = (movement_queue_head + 1) & (MOVEMENT_QUEUE_SIZE - 1);
     if (new_head == movement_queue_tail) {
@@ -128,9 +128,10 @@ int8_t movement_push(struct movement_block * op)
     }
 
     memcpy(&movement_queue_blocks[movement_queue_head], op, sizeof(struct movement_block));
+    uint8_t tag = movement_queue_head;
     movement_queue_head = new_head;
     STATE_FLAGS &= ~(1 << STATE_BIT_BUFFER_EMPTY);
-    return 0;
+    return tag;
 }
 
 ISR(TIMER1_OVF_vect)
@@ -145,6 +146,8 @@ ISR(TIMER1_OVF_vect)
     }
 
     movement_set(&movement_queue_blocks[movement_queue_tail]);
+    current_position.tag = movement_queue_tail;
+
     TIMSK1 |= (1 << TOIE1);
     STATE_FLAGS |= (1 << STATE_BIT_RUNNING);
     movement_queue_tail++;
@@ -167,7 +170,6 @@ int8_t movement_jog(struct movement_block * op)
         memset(&jog_movement, 0, sizeof(struct movement_block));
     }
     memcpy(&jog_target_speed, op, sizeof(struct movement_block));
-    jog_movement.tag = jog_target_speed.tag;
     flush_steps_taken();
     STATE_FLAGS |= (1 << STATE_BIT_JOGGING);
     return 0;
@@ -218,7 +220,6 @@ static void movement_set(struct movement_block * next_op)
     intervalZ = pgm_read_word(&pulse_timings[abs(next_op->Z)]);
     OCR1C = intervalZ;
 
-    current_position.tag = next_op->tag;
     uint8_t newport = (STEPPER_PORT & ((1 << STEPPER_PIN_ENABLE)
                                      | (1 << STEPPER_PIN_SPINDLE)))
 #ifdef STEPPER_STEP_ACTIVE_LOW
