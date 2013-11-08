@@ -21,21 +21,12 @@ static uint8_t movement_queue_tail;
 static struct movement_block movement_queue_blocks[MOVEMENT_QUEUE_SIZE];
 
 static void movement_set(struct movement_block * next_op);
-static void flush_steps_taken();
-
-// Count for steps actually taken
-static uint8_t steps_taken_X;
-static uint8_t steps_taken_Y;
-static uint8_t steps_taken_Z;
 
 void movement_init()
 {
     TIMSK1 = (1 << TOIE1);
     TIFR1  = 0;
 
-    steps_taken_X = 0;
-    steps_taken_Y = 0;
-    steps_taken_Z = 0;
     movement_disable_steppers();
     movement_disable_spindle();
     STEPPER_DDR = 0xff;
@@ -66,7 +57,6 @@ void movement_stop(uint8_t reason)
     TIMSK1 = (1 << TOIE1);
     TIFR1  = 0;
 
-    flush_steps_taken();
     movement_queue_head = 0;
     movement_queue_tail = 0;
     status.stop_reason = reason;
@@ -90,7 +80,7 @@ void movement_start()
     TCNT0 = 0;
     TCNT3 = 0;
     TIFR1 = 0;
-    flush_steps_taken();
+
     STATE_FLAGS |= (1 << STATE_BIT_RUNNING);
     status.stop_reason = STOP_REASON_NONE;
 }
@@ -111,11 +101,12 @@ int16_t movement_push(struct movement_block * op)
 }
 
 static struct movement_block jog_target_speed;
+static struct movement_block jog_movement;
 
 ISR(TIMER1_OVF_vect)
 {
     TIMSK1 = (1 << TOIE1);
-    flush_steps_taken();
+
     if (STATE_FLAGS & (1 << STATE_BIT_RUNNING)) {
         if (movement_queue_head != movement_queue_tail) {
             status.tag = movement_queue_tail;
@@ -129,36 +120,82 @@ ISR(TIMER1_OVF_vect)
             }
         }
     } else if (STATE_FLAGS & (1 << STATE_BIT_MOVING)) {
-        movement_set(&jog_target_speed);
+        int16_t d;
+        d = (int16_t) jog_target_speed.X - jog_movement.X;
+        if (d < 0)
+            jog_movement.X--;
+        else if (d > 0)
+            jog_movement.X++;
+        d = (int16_t) jog_target_speed.Y - jog_movement.Y;
+        if (d < 0)
+            jog_movement.Y--;
+        else if (d > 0)
+            jog_movement.Y++;
+        d = (int16_t) jog_target_speed.Z - jog_movement.Z;
+        if (d < 0)
+            jog_movement.Z--;
+        else if (d > 0)
+            jog_movement.Z++;
+        movement_set(&jog_movement);
     }
+
     SYS_FLAGS_A |= (1 << EVENT_TIMESLICE);
 }
-
-//static struct movement_block jog_movement;
 
 int8_t movement_jog(struct movement_block * op)
 {
     if (STATE_FLAGS & (1 << STATE_BIT_RUNNING))
         return -1;
     if ((STATE_FLAGS & (1 << STATE_BIT_MOVING)) == 0) {
-        STATE_FLAGS |= (1 << STATE_BIT_MOVING);
-        //memset(&jog_movement, 0, sizeof(struct movement_block));
+        memset(&jog_movement, 0, sizeof(struct movement_block));
     }
     asm volatile("cli");
     memcpy(&jog_target_speed, op, sizeof(struct movement_block));
     asm volatile("sei");
+    STATE_FLAGS |= (1 << STATE_BIT_MOVING);
     return 0;
 }
 
+// Count for steps actually taken
+static uint8_t steps_taken_X = 0;
+static uint8_t steps_taken_Y = 0;
+static uint8_t steps_taken_Z = 0;
+
 // Used in pulse generation
-static uint16_t intervalX;
-static uint16_t intervalY;
-static uint16_t intervalZ;
+static uint16_t intervalX = 0xffff;
+static uint16_t intervalY = 0xffff;
+static uint16_t intervalZ = 0xffff;
 
 static void movement_set(struct movement_block * next_op)
 {
+    register uint8_t port = STEPPER_PORT;
+    if (SYS_FLAGS_A & (1 << ACTIVE_LOW_BIT_DIR))
+        port ^= (1 << STEPPER_PIN_DIR_X) | (1 << STEPPER_PIN_DIR_Y) | (1 << STEPPER_PIN_DIR_Z);
+
+    if (port & (1 << STEPPER_PIN_DIR_X)) {
+        status.X += steps_taken_X;
+    } else {
+        status.X -= steps_taken_X;
+    }
+    steps_taken_X = 0;
+
+    if (port & (1 << STEPPER_PIN_DIR_Y)) {
+        status.Y += steps_taken_Y;
+    } else {
+        status.Y -= steps_taken_Y;
+    }
+    steps_taken_Y = 0;
+
+    if (port & (1 << STEPPER_PIN_DIR_Z)) {
+        status.Z += steps_taken_Z;
+    } else {
+        status.Z -= steps_taken_Z;
+    }
+    steps_taken_Z = 0;
+
     if (STATE_FLAGS & (1 << STATE_BIT_ESTOP))
         return;
+
     TIMSK1 = 0;
     status.stop_reason = STOP_REASON_NONE;
     intervalX = pulse_timings[abs(next_op->X)];
@@ -202,35 +239,6 @@ static void movement_set(struct movement_block * next_op)
     TIMSK3 = TIMSK1;
     TIFR1 = TIMSK1;
     TIMSK1 |= (1 << TOIE1);
-}
-
-static void flush_steps_taken()
-{
-    UDR0 = steps_taken_X;
-    register uint8_t port = STEPPER_PORT;
-    if (SYS_FLAGS_A & (1 << ACTIVE_LOW_BIT_DIR))
-        port ^= (1 << STEPPER_PIN_DIR_X) | (1 << STEPPER_PIN_DIR_Y) | (1 << STEPPER_PIN_DIR_Z);
-
-    if (port & (1 << STEPPER_PIN_DIR_X)) {
-        status.X += steps_taken_X;
-    } else {
-        status.X -= steps_taken_X;
-    }
-    steps_taken_X = 0;
-
-    if (port & (1 << STEPPER_PIN_DIR_Y)) {
-        status.Y += steps_taken_Y;
-    } else {
-        status.Y -= steps_taken_Y;
-    }
-    steps_taken_Y = 0;
-
-    if (port & (1 << STEPPER_PIN_DIR_Z)) {
-        status.Z += steps_taken_Z;
-    } else {
-        status.Z -= steps_taken_Z;
-    }
-    steps_taken_Z = 0;
 }
 
 // Take step on X

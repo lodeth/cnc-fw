@@ -213,6 +213,7 @@ static int8_t handle_command()
             serial_tx(RES_UNKNOWN);
             return 0;
     }
+
     serial_tx(res);
     return 0;
 }
