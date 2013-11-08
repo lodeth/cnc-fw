@@ -13,6 +13,7 @@
 #define PACKED_STRUCT
 #endif
 
+
 // ---------------------------------------------------------------------------------------------------
 //
 //  Notifications pushed from the device to host
@@ -23,12 +24,13 @@
 // Machine position update push
 #define MSG_POSITION        0xF1
     #define STATE_BIT_BUFFER_EMPTY 0  /* 0x01 Motion buffer empty */
-    #define STATE_BIT_MOVING       1  /* 0x02 Machine is moving */
-    #define STATE_BIT_RUNNING      2  /* 0x04 Motion stream is being processed */
-    #define STATE_BIT_JOGGING      3  /* 0x08 Machine is jogging */
-    #define STATE_BIT_RES1         4  /* 0x10 */
-    #define STATE_BIT_RES2         5  /* 0x20 */
-    #define STATE_BIT_LOST         6  /* 0x40 Machine was moving while motion was stopped */
+    #define STATE_BIT_RUNNING      1  /* 0x02 Motion stream is being processed */
+    #define STATE_BIT_MOVING       2  /* 0x04 Machine is moving */
+    #define STATE_BIT_RES1         3  /* 0x08 */
+
+    #define STATE_BIT_RES2         4  /* 0x10 */
+    #define STATE_BIT_RES3         5  /* 0x20 */
+    #define STATE_BIT_RES4         6  /* 0x40 */
     #define STATE_BIT_ESTOP        7  /* 0x80 Machine is halted because ESTOP was triggered */
    
     enum stop_reason_enum {
@@ -43,13 +45,15 @@
     };
 
 #pragma pack(push, 1)
-    struct position_block
+    struct status_block
     {
 #ifdef CLIENT_INCLUDE
         uint8_t state;  // saved in GPIOR0 on AVR
+        uint8_t outputs;
 #endif
+        uint8_t inputs; // already inverted as per input mask
+        uint8_t free_slots; // free slots in motion queue
         uint8_t tag;    // tag of active movement
-        uint8_t inputs;
         uint8_t stop_reason;
         int32_t X;
         int32_t Y;
@@ -73,7 +77,7 @@
 
 // ---------------------------------------------------------------------------------------------------
 //
-//  Generic commands allowed in ESTOP
+//  Generic commands allowed always
 //
 // ---------------------------------------------------------------------------------------------------
 
@@ -85,6 +89,9 @@
 #define CMD_SET_ESTOP       0x03    /* Set ESTOP condition */
 #define CMD_CLEAR_ESTOP     0x04    /* Attempt to clear ESTOP condition. */
 #define CMD_GET_STATE       0x05    /* Request status from machine */
+
+#define CMD_DEBUG           0x06    /* Do random stuff */
+#define CMD_DEBUG2          0x07
 
 // ---------------------------------------------------------------------------------------------------
 //
@@ -121,17 +128,35 @@ struct movement_block {
 //  struct movement_block
 #define CMD_MOVE_JOG        0x22    /* Set motion to desired speeds. Buggy. */
 
-// Queue movement for execution
+// Queue movement for execution, response is followed by MSG_POSITION
 //  Parameters:
-//      struct movement_block
+//      uint8_t count
+//      count * (struct movement_block)
 //  Response:
-//      RES_QUEUED   - move queued, followed by uint8_t tag of the move
-//      ERR_FULL     - not queued, buffer is full
+//      RES_QUEUED
+//          uint8_t count - count of moves queued, may be zero
+//          uint8_t tag   - tag of first accepted move,
+//                          wraps around at MOVEMENT_QUEUE_SIZE
+//                          undefined value if count is zero
+
 #define CMD_MOVE_QUEUE      0x23
     #define RES_QUEUED          0x20
-    #define ERR_FULL            0x21
 
-// Defined here because this is a common file
-#define FIRMWARE_PANIC() for (;;) { cli(); UDR1 = MSG_FIRMWARE_PANIC; UDR0 = MSG_FIRMWARE_PANIC; }
+// ---------------------------------------------------------------------------------------------------
+//
+//  Commands allowed only in ESTOP, mostly configuration
+//
+// ---------------------------------------------------------------------------------------------------
+
+#define CMD_SET_ACTIVE_LOW  0x30
+    #define ACTIVE_LOW_BIT_ESTOP   1
+    #define ACTIVE_LOW_BIT_LIMITS  2
+    #define ACTIVE_LOW_BIT_PROBE   3
+    #define ACTIVE_LOW_BIT_STEP    4
+    #define ACTIVE_LOW_BIT_DIR     5  
+    #define ACTIVE_LOW_BIT_ENABLE  6  
+    #define ACTIVE_LOW_BIT_SPINDLE 7  
+
+
 #endif
 

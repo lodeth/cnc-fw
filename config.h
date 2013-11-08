@@ -22,7 +22,7 @@
 
 // This is multiplied with the pulse width base value to get the
 // stepping pulse width.
-    #define STEP_PULSE_WIDTH_TICKS      20
+    #define STEP_PULSE_WIDTH_TICKS      5
 
 // Number of timeslices before sending the status
 // Zero means 256
@@ -39,11 +39,12 @@
     #define ESTOP_AFTER_RESET
 
 // Please keep these a power of two or hilarity ensues (value <= 256)
-    #define SERIAL_TX_QUEUE_SIZE        64
-    #define SERIAL_RX_QUEUE_SIZE        64
+//    #define SERIAL_TX_QUEUE_SIZE        64
+//    #define SERIAL_RX_QUEUE_SIZE        64
+
 
 // Please keep this a power of two or hilarity ensues (value <= 256)
-    #define MOVEMENT_QUEUE_SIZE         256
+#define MOVEMENT_QUEUE_SIZE         256
 
 // -----------------------------------------------------------------
 //
@@ -135,6 +136,8 @@
     #define SERIAL_UCSRnB           UCSR0B
     // These should be equal for all serial interfaces, but let's define them anyway
     #define SERIAL_U2X              U2X0
+    #define SERIAL_UDREn            UDRE0
+    #define SERIAL_RXCn             RXC0
     #define SERIAL_RXEN             RXEN0
     #define SERIAL_TXEN             TXEN0
     #define SERIAL_RXCIE            RXCIE0
@@ -148,6 +151,8 @@
     #define SERIAL_UCSRnA           UCSR1A
     #define SERIAL_UCSRnB           UCSR1B
     #define SERIAL_U2X              U2X1
+    #define SERIAL_UDREn            UDRE1
+    #define SERIAL_RXCn             RXC1
     #define SERIAL_RXEN             RXEN1
     #define SERIAL_TXEN             TXEN1
     #define SERIAL_RXCIE            RXCIE1
@@ -161,6 +166,8 @@
     #define SERIAL_UCSRnA           UCSR2A
     #define SERIAL_UCSRnB           UCSR2B
     #define SERIAL_U2X              U2X2
+    #define SERIAL_UDREn            UDRE2
+    #define SERIAL_RXCn             RXC2
     #define SERIAL_RXEN             RXEN2
     #define SERIAL_TXEN             TXEN2
     #define SERIAL_RXCIE            RXCIE2
@@ -174,6 +181,8 @@
     #define SERIAL_UCSRnA           UCSR3A
     #define SERIAL_UCSRnB           UCSR3B
     #define SERIAL_U2X              U2X3
+    #define SERIAL_UDREn            UDRE3
+    #define SERIAL_RXCn             RXC3
     #define SERIAL_RXEN             RXEN3
     #define SERIAL_TXEN             TXEN3
     #define SERIAL_RXCIE            RXCIE3
@@ -187,9 +196,11 @@
 //
 // -----------------------------------------------------------------
 
-#define STATE_FLAGS GPIOR0
-#define EVENT_FLAGS GPIOR1
+#define STATE_FLAGS  GPIOR0
+#define SYS_FLAGS_A  GPIOR1
+
 #define EVENT_TIMESLICE 0
 
+#define FIRMWARE_PANIC() for (;;) { cli(); UDR1 = 0xEE; UDR0 = 0xEE; }
 #endif
 

@@ -8,8 +8,8 @@ FREQ       = 16000000
 PROGDEV    = avrisp2
 PROGTTY    = /dev/tty.usbmodemfd121
 
-CFLAGS     = -Wall -Os -I.
-OBJECTS    = main.o movement.o movement_asm.o precalc.o serial.o
+CFLAGS     = -Wall -Werror -Os -I.
+OBJECTS    = main.o movement.o movement_asm.o pins.o serial.o
 
 PROGCMD    = $(AVRDUDE) -B10 -p $(DEVICE) -c $(PROGDEV) -P $(PROGTTY)
 COMPILE    = $(CC) $(CFLAGS) -DF_CPU=$(FREQ) -mmcu=$(DEVICE) 
