@@ -223,14 +223,13 @@ int main()
 #ifdef ESTOP_AFTER_RESET
     STATE_FLAGS |= (1 << STATE_BIT_ESTOP);
 #endif
+    pins_init_inputs();
+    pins_set_active_low_mask(0xef);
 
     movement_init();
     serial_init();
-    pins_init_inputs();
-
     DDRB = 0x80;
     sei();
-    pins_set_active_low_mask(0xef);
 
     for (;;) {
         handle_command();

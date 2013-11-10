@@ -27,9 +27,9 @@ void movement_init()
     TIMSK1 = (1 << TOIE1);
     TIFR1  = 0;
 
-    movement_disable_steppers();
-    movement_disable_spindle();
     STEPPER_DDR = 0xff;
+    movement_disable_spindle();
+    movement_disable_steppers();
 
     movement_stop(STOP_REASON_RESET);
 
@@ -145,7 +145,8 @@ ISR(TIMER1_OVF_vect)
 int8_t movement_jog(struct movement_block * op)
 {
     if (STATE_FLAGS & (1 << STATE_BIT_RUNNING))
-        return -1;
+        movement_stop(STOP_REASON_NONE);
+
     if ((STATE_FLAGS & (1 << STATE_BIT_MOVING)) == 0) {
         memset(&jog_movement, 0, sizeof(struct movement_block));
     }
