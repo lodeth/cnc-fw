@@ -8,7 +8,7 @@ FREQ       = 16000000
 PROGDEV    = avrisp2
 PROGTTY    = /dev/tty.usbmodemfd121
 
-CFLAGS     = -Wall -Werror -Os -I.
+CFLAGS     = -std=gnu99 -flto -Wall -Werror -pedantic-errors -Os -I.
 OBJECTS    = main.o movement.o movement_asm.o pins.o serial.o
 
 PROGCMD    = $(AVRDUDE) -B10 -p $(DEVICE) -c $(PROGDEV) -P $(PROGTTY)

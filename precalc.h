@@ -1,4 +1,4 @@
-const uint16_t pulse_timings[] = {
+const uint16_t PROGMEM pulse_timings[] = {
     0x0000, // 0 (special case)
     0xffff, // 1 (special case)
     0x6aab, // 02

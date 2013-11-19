@@ -68,6 +68,8 @@
 
 // Input polarity for ESTOP. CMD_CLEAR_ESTOP is rejected if ESTOP is active.
     #define INPUT_ESTOP_ACTIVE_LOW
+    #define INPUT_LIMITS_ACTIVE_LOW
+    #define INPUT_PROBE_ACTIVE_LOW
 
 // Port definition
     #define INPUT_PORT          PORTK
@@ -90,35 +92,48 @@
 //
 //      Default values result in the following:
 //          /STEP_X  = PF.0
-//          /STEP_Y  = PF.1
-//          /STEP_Z  = PF.2
-//          /DIR_X   = PF.3
-//          /DIR_Y   = PF.4
+//          /DIR_X   = PF.1
+//          /STEP_Y  = PF.2
+//          /DIR_Y   = PF.3
+//          /STEP_Z  = PF.4
 //          /DIR_Z   = PF.5
-//          /ENABLE  = PF.6
-//          /SPINDLE = PF.7
+//          /STEP_A  = PF.6
+//          /DIR_A   = PF.7
+
+
+//          /ENABLE  = PA.0
+//          /SPINDLE = PA.1
 //
 // -----------------------------------------------------------------
 
+#define STEPPERS_DISABLED_IN_ESTOP
+
 // Signal polarity, comment to disable
-    #define STEPPER_ENABLE_ACTIVE_LOW
-    #define STEPPER_SPINDLE_ACTIVE_LOW
+    #define CONTROL_ENABLE_ACTIVE_LOW
+//    #define CONTROL_SPINDLE_ACTIVE_LOW
+
     #define STEPPER_STEP_ACTIVE_LOW
     #define STEPPER_DIR_POSITIVE_LOW
 
 // Port definition
     #define STEPPER_PORT        PORTF
     #define STEPPER_DDR         DDRF
+    #define CONTROL_PORT        PORTA
+    #define CONTROL_DDR         DDRA
+
 
 // Pin definitions
     #define STEPPER_PIN_STEP_X  0
-    #define STEPPER_PIN_STEP_Y  1
-    #define STEPPER_PIN_STEP_Z  2
-    #define STEPPER_PIN_DIR_X   3
-    #define STEPPER_PIN_DIR_Y   4
+    #define STEPPER_PIN_DIR_X   1
+    #define STEPPER_PIN_STEP_Y  2
+    #define STEPPER_PIN_DIR_Y   3
+    #define STEPPER_PIN_STEP_Z  4
     #define STEPPER_PIN_DIR_Z   5
-    #define STEPPER_PIN_ENABLE  6
-    #define STEPPER_PIN_SPINDLE 7
+    #define STEPPER_PIN_STEP_A  6
+    #define STEPPER_PIN_DIR_A   7
+
+    #define CONTROL_PIN_ENABLE  0
+    #define CONTROL_PIN_SPINDLE 1
 
 // -----------------------------------------------------------------
 //

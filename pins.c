@@ -7,44 +7,49 @@
 #include "movement.h"
 
 __attribute__((always_inline))
-inline uint8_t pins_get_inverted_inputs()
+inline uint8_t pins_get_inputs()
 {
-    register uint8_t state = INPUT_PIN;
-    if (SYS_FLAGS_A & (1 << ACTIVE_LOW_BIT_ESTOP))      { state ^= (1 << INPUT_ESTOP); }
-    if (SYS_FLAGS_A & (1 << ACTIVE_LOW_BIT_LIMITS))     { state ^= (1 << INPUT_LIMIT_X); state ^= (1 << INPUT_LIMIT_Y); state ^= (1 << INPUT_LIMIT_Z); }
-    if (SYS_FLAGS_A & (1 << ACTIVE_LOW_BIT_PROBE))      { state ^= (1 << INPUT_PROBE); }
-    return state;
-};
-
+    return INPUT_PIN ^ ( 
+#ifdef INPUT_ESTOP_ACTIVE_LOW
+    (1 << INPUT_ESTOP) | 
+#endif
+#ifdef INPUT_PROBE_ACTIVE_LOW
+    (1 << INPUT_PROBE) | 
+#endif
+#ifdef INPUT_LIMITS_ACTIVE_LOW
+    (1 << INPUT_ESTOP) | 
+#endif
+    0);
+}
 
 uint8_t pins_is_estop_line_asserted()
 {
-    register uint8_t ip = INPUT_PIN & (1 << INPUT_ESTOP);
-    return (SYS_FLAGS_A & (1 << ACTIVE_LOW_BIT_ESTOP)) ? (ip == 0) : (ip != 0);
-}
-
-void pins_set_active_low_mask(uint8_t mask)
-{
-    STATE_FLAGS |= (1 << STATE_BIT_ESTOP);
-    SYS_FLAGS_A = mask | (SYS_FLAGS_A & (1 << EVENT_TIMESLICE));
-    PCIFR |= (1 << INPUT_PCIE);
+#ifdef INPUT_ESTOP_ACTIVE_LOW
+    return (INPUT_PIN & (1 << INPUT_ESTOP)) == 0;
+#else
+    return (INPUT_PIN & (1 << INPUT_ESTOP)) != 0;
+#endif
 }
 
 extern struct status_block status;
 
-void pins_init_inputs()
+void pins_init()
 {
     INPUT_DDR  = 0x00;
     INPUT_PORT = 0xff;
     INPUT_PCIMSK = 0xff;
-    status.inputs = pins_get_inverted_inputs();
+    status.inputs = pins_get_inputs();
     PCICR |= (1 << INPUT_PCIE);
     PCIFR |= (1 << INPUT_PCIE);
+
+    CONTROL_DDR |= (1 << CONTROL_PIN_ENABLE) | (1 << CONTROL_PIN_SPINDLE);
+    pins_disable_spindle();
+    pins_disable_steppers();
 }
 
 ISR(INPUT_PCI_vect)
 {
-    register uint8_t inputs = pins_get_inverted_inputs();
+    register uint8_t inputs = pins_get_inputs();
     uint8_t change = inputs ^ status.inputs;
     status.inputs = inputs;
 
@@ -52,7 +57,7 @@ ISR(INPUT_PCI_vect)
     if (STATE_FLAGS & (1 << STATE_BIT_ESTOP))
         return;
     
-    if ((inputs & (1 << INPUT_ESTOP)) != 0) {
+    if ((inputs & (1 << INPUT_ESTOP))) {
         movement_stop(STOP_REASON_ESTOP);
         return; // We don't care about limits if ESTOP was just triggered
     }
@@ -63,40 +68,39 @@ ISR(INPUT_PCI_vect)
         movement_stop(STOP_REASON_PROBE);
 }
 
-
-void movement_enable_steppers()
+void pins_enable_steppers()
 {
-    if (SYS_FLAGS_A & (1 << ACTIVE_LOW_BIT_ENABLE)) {
-        STEPPER_PORT &= ~(1 << STEPPER_PIN_ENABLE);
-    } else {
-        STEPPER_PORT |= (1 << STEPPER_PIN_ENABLE);
-    }
+#ifdef CONTROL_ENABLE_ACTIVE_LOW
+    CONTROL_PORT &= ~(1 << CONTROL_PIN_ENABLE);
+#else
+    CONTROL_PORT |= (1 << CONTROL_PIN_ENABLE);
+#endif
 }
 
-void movement_disable_steppers()
+void pins_disable_steppers()
 {
-    if (SYS_FLAGS_A & (1 << ACTIVE_LOW_BIT_ENABLE)) {
-        STEPPER_PORT |= (1 << STEPPER_PIN_ENABLE);
-    } else {
-        STEPPER_PORT &= ~(1 << STEPPER_PIN_ENABLE);
-    }
+#ifdef CONTROL_ENABLE_ACTIVE_LOW
+    CONTROL_PORT |= (1 << CONTROL_PIN_ENABLE);
+#else
+    CONTROL_PORT &= ~(1 << CONTROL_PIN_ENABLE);
+#endif
 }
 
-void movement_enable_spindle()
+void pins_enable_spindle()
 {
-    if (SYS_FLAGS_A & (1 << ACTIVE_LOW_BIT_SPINDLE)) {
-        STEPPER_PORT &= ~(1 << STEPPER_PIN_SPINDLE);
-    } else {
-        STEPPER_PORT |= (1 << STEPPER_PIN_SPINDLE);
-    }
+#ifdef CONTROL_SPINDLE_ACTIVE_LOW
+    CONTROL_PORT &= ~(1 << CONTROL_PIN_SPINDLE);
+#else
+    CONTROL_PORT |= (1 << CONTROL_PIN_SPINDLE);
+#endif
 }
 
-void movement_disable_spindle()
+void pins_disable_spindle()
 {
-    if (SYS_FLAGS_A & (1 << ACTIVE_LOW_BIT_SPINDLE)) {
-        STEPPER_PORT |= (1 << STEPPER_PIN_SPINDLE);
-    } else {
-        STEPPER_PORT &= ~(1 << STEPPER_PIN_SPINDLE);
-    }
+#ifdef CONTROL_SPINDLE_ACTIVE_LOW
+    CONTROL_PORT |= (1 << CONTROL_PIN_SPINDLE);
+#else
+    CONTROL_PORT &= ~(1 << CONTROL_PIN_SPINDLE);
+#endif
 }
 

@@ -57,29 +57,29 @@ void timeslice_elapsed()
 
 static void handle_move_queue()
 {
-    uint8_t estop = (STATE_FLAGS & (1 << STATE_BIT_ESTOP)) != 0;
-    uint8_t skip = estop;
-
-    uint8_t countOut = 0;
-    uint8_t tag = 0;
-    struct movement_block arg;
-
     uint8_t countIn = serial_rx();
+    uint8_t estop = (STATE_FLAGS & (1 << STATE_BIT_ESTOP)) != 0;
 
     int i;
-    for (i = 0; i < countIn; i++) {
-        serial_rxb(&arg, sizeof(struct movement_block));
-        if (skip)
-            continue;
+    uint8_t countOut = 0;
+    uint8_t tag = 0;
 
-        int16_t res = movement_push(&arg);
-        if (res < 0) {
-            skip = 1;
-            continue;
+    if (!estop) {
+        struct movement_block * blk;
+        for (i = 0; i < countIn; i++) {
+            blk = movement_queue_get_free();
+            if (!blk)
+                break;
+            serial_rxb(blk, sizeof(struct movement_block));
+            uint8_t tmp = movement_queue_commit();
+            if (countOut == 0)
+                tag = tmp; 
+            countOut++;
         }
-        if (countOut == 0)
-            tag = (uint8_t)res;
-        countOut++;
+    }
+    for (i = countOut; i < countIn; i++) {
+        struct movement_block arg;
+        serial_rxb(&arg, sizeof(struct movement_block));
     }
 
     if (estop) {
@@ -92,25 +92,14 @@ static void handle_move_queue()
     }
 }
 
-extern uint16_t pulse_timings[];
-//const uint16_t pulse_timings[] PROGMEM = {
-
 void handle_debug()
 {
-    uint8_t idx = serial_rx();
-    uint16_t interval = serial_rx();
-    interval |= serial_rx() << 8;
-    pulse_timings[idx] = interval;
-    serial_tx(RES_ACK);
+    serial_tx(RES_NAK);
 }
 
 void handle_debug2()
 {
-    uint8_t idx = serial_rx();
-    uint16_t interval = pulse_timings[idx];
-    serial_tx(RES_ACK);
-    serial_tx(interval & 0xff);
-    serial_tx(interval >> 8);
+    serial_tx(RES_NAK);
 }
 
 static int8_t handle_command()
@@ -152,15 +141,6 @@ static int8_t handle_command()
             cmd_send_status();
             return 0;
 
-        case CMD_SET_ACTIVE_LOW:
-            if (ESTOP) {
-                pins_set_active_low_mask(serial_rx());
-                res = RES_ACK;
-            } else {
-                res = RES_NAK;
-            }
-            break;
-
         case CMD_MOVE_STOP:
             if (!ESTOP) movement_stop(STOP_REASON_COMMAND);
             break;
@@ -168,25 +148,24 @@ static int8_t handle_command()
         case CMD_MOVE_START:
             if (ESTOP)
                 break;
-            movement_enable_steppers();    
-            movement_start();
+            movement_cycle_start();
             break;
 
         case CMD_MOTORS_ON:
-            if (!ESTOP) movement_enable_steppers();
+            if (!ESTOP) pins_enable_steppers();
             break;
 
         case CMD_MOTORS_OFF:
-            movement_disable_steppers();
+            pins_disable_steppers();
             res = RES_ACK;
             break;
 
         case CMD_SPINDLE_ON:
-            if (!ESTOP) movement_enable_spindle();
+            if (!ESTOP) pins_enable_spindle();
             break;
 
         case CMD_SPINDLE_OFF:
-            movement_disable_spindle();
+            pins_disable_spindle();
             res = RES_ACK;
             break;
 
@@ -223,12 +202,12 @@ int main()
 #ifdef ESTOP_AFTER_RESET
     STATE_FLAGS |= (1 << STATE_BIT_ESTOP);
 #endif
-    pins_init_inputs();
-    pins_set_active_low_mask(0xef);
+    DDRB |= 0x80;
 
+    pins_init();
     movement_init();
     serial_init();
-    DDRB = 0x80;
+
     sei();
 
     for (;;) {

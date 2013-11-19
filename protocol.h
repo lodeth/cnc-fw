@@ -142,21 +142,5 @@ struct movement_block {
 #define CMD_MOVE_QUEUE      0x23
     #define RES_QUEUED          0x20
 
-// ---------------------------------------------------------------------------------------------------
-//
-//  Commands allowed only in ESTOP, mostly configuration
-//
-// ---------------------------------------------------------------------------------------------------
-
-#define CMD_SET_ACTIVE_LOW  0x30
-    #define ACTIVE_LOW_BIT_ESTOP   1
-    #define ACTIVE_LOW_BIT_LIMITS  2
-    #define ACTIVE_LOW_BIT_PROBE   3
-    #define ACTIVE_LOW_BIT_STEP    4
-    #define ACTIVE_LOW_BIT_DIR     5  
-    #define ACTIVE_LOW_BIT_ENABLE  6  
-    #define ACTIVE_LOW_BIT_SPINDLE 7  
-
-
 #endif
 
