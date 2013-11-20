@@ -39,11 +39,10 @@ void movement_init()
     TIMSK1 = (1 << TOIE1);
     TIFR1  = 0;
 
-    pins_disable_spindle();
-    pins_disable_steppers();
-
     STEPPER_DDR = (1 << STEPPER_PIN_STEP_X) | (1 << STEPPER_PIN_STEP_Y) | (1 << STEPPER_PIN_STEP_Z) | (1 << STEPPER_PIN_STEP_A) |
                   (1 << STEPPER_PIN_DIR_X) | (1 << STEPPER_PIN_DIR_Y) | (1 << STEPPER_PIN_DIR_Z) | (1 << STEPPER_PIN_DIR_A);
+    pins_disable_spindle();
+    pins_disable_steppers();
     movement_stop(STOP_REASON_RESET);
 
 #ifndef STEPPER_STEP_ACTIVE_LOW
@@ -207,9 +206,9 @@ static void movement_set(struct movement_block * next_op)
 
     TIMSK1 = 0;
     status.stop_reason = STOP_REASON_NONE;
-    intervalX = pulse_timings[abs(next_op->X)];
-    intervalY = pulse_timings[abs(next_op->Y)];
-    intervalZ = pulse_timings[abs(next_op->Z)];
+    intervalX = pgm_read_word(&pulse_timings[abs(next_op->X)]);
+    intervalY = pgm_read_word(&pulse_timings[abs(next_op->Y)]);
+    intervalZ = pgm_read_word(&pulse_timings[abs(next_op->Z)]);
 
     OCR1A = intervalX;
     OCR1B = intervalY;
