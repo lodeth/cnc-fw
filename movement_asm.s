@@ -3,22 +3,37 @@
 #define FROM_ASM_CODE
 #include "config.h"
 
-.macro ENDPULSE_ISR VECTOR STEP_BIT CHANNEL_BIT
-.section .text.\VECTOR, "ax", @progbits
-.global \VECTOR	
-.type	\VECTOR, @function
-\VECTOR:
-    // Deassert stepper bit
-#ifdef STEPPER_STEP_ACTIVE_LOW
-    sbi _SFR_IO_ADDR(STEPPER_PORT), \STEP_BIT
-#else
-    cbi _SFR_IO_ADDR(STEPPER_PORT), \STEP_BIT
-#endif
-    reti
-	.size	\VECTOR, .-\VECTOR
+.macro BEGIN_FUNC FUNC
+.section .text.\FUNC, "ax", @progbits
+.global \FUNC	
+.type	\FUNC, @function
+\FUNC:
 .endm
 
-//ENDPULSE_ISR TIMER3_COMPA_vect, STEPPER_PIN_STEP_X, OCIE3A
-//ENDPULSE_ISR TIMER3_COMPB_vect, STEPPER_PIN_STEP_Y, OCIE3B
-//ENDPULSE_ISR TIMER3_COMPC_vect, STEPPER_PIN_STEP_Z, OCIE3C
 
+BEGIN_FUNC TIMER3_COMPA_vect
+    // Deassert stepper bit
+#ifdef STEPPER_STEP_ACTIVE_LOW
+    sbi _SFR_IO_ADDR(STEPPER_PORT), STEPPER_PIN_STEP_X
+#else
+    cbi _SFR_IO_ADDR(STEPPER_PORT), STEPPER_PIN_STEP_X
+#endif
+    reti
+
+BEGIN_FUNC TIMER3_COMPB_vect
+#ifdef STEPPER_STEP_ACTIVE_LOW
+    sbi _SFR_IO_ADDR(STEPPER_PORT), STEPPER_PIN_STEP_Y
+    sbi _SFR_IO_ADDR(STEPPER_PORT), STEPPER_PIN_STEP_A
+#else
+    cbi _SFR_IO_ADDR(STEPPER_PORT), STEPPER_PIN_STEP_Y
+    cbi _SFR_IO_ADDR(STEPPER_PORT), STEPPER_PIN_STEP_A
+#endif
+    reti
+
+BEGIN_FUNC TIMER3_COMPC_vect
+#ifdef STEPPER_STEP_ACTIVE_LOW
+    sbi _SFR_IO_ADDR(STEPPER_PORT), STEPPER_PIN_STEP_Z
+#else
+    cbi _SFR_IO_ADDR(STEPPER_PORT), STEPPER_PIN_STEP_Z
+#endif
+    reti

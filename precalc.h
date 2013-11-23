@@ -1,6 +1,6 @@
 const uint16_t PROGMEM pulse_timings[] = {
     0x0000, // 0 (special case)
-    0xffff, // 1 (special case)
+    0xfff0, // 1 (special case)
     0x6aab, // 02
     0x4aab, // 03
     0x399a, // 04

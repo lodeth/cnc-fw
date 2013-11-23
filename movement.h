@@ -17,8 +17,10 @@ struct movement_block * movement_queue_get_free();
 // and mark it as filled and return tag
 uint8_t movement_queue_commit();
 
+int16_t movement_push(struct movement_block * op);
 
-// set movement speeds immediately, returns -1 if queue started
-int8_t movement_jog(struct movement_block * op);
+// set movement speeds, returns -1 if queue started
+int8_t movement_jog(uint8_t axis, int8_t speed, uint8_t immediate);
+
 #endif
 

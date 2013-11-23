@@ -20,9 +20,11 @@
 
     #define MOVEMENT_TIMESLICE TIMESLICE_32MS
 
+    #define MAX_JOG_RATE 0x30
+
 // This is multiplied with the pulse width base value to get the
 // stepping pulse width.
-    #define STEP_PULSE_WIDTH_TICKS      5
+    #define STEP_PULSE_WIDTH_TICKS      10
 
 // Number of timeslices before sending the status
 // Zero means 256
@@ -125,6 +127,7 @@
 // Pin definitions
     #define STEPPER_PIN_STEP_X  0
     #define STEPPER_PIN_DIR_X   1
+
     #define STEPPER_PIN_STEP_Y  2
     #define STEPPER_PIN_DIR_Y   3
     #define STEPPER_PIN_STEP_Z  4

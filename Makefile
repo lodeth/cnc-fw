@@ -6,9 +6,9 @@ AVR_SIZE   = avr-size
 DEVICE     = atmega2560
 FREQ       = 16000000
 PROGDEV    = avrisp2
-PROGTTY    = /dev/tty.usbmodemfd121
+PROGTTY    = /dev/tty.usbmodemfa131
 
-CFLAGS     = -std=gnu99 -flto -Wall -Werror -pedantic-errors -Os -I.
+CFLAGS     = -std=gnu99 -flto -Wall -Werror -pedantic-errors -O3 -fno-strict-overflow -I.
 OBJECTS    = main.o movement.o movement_asm.o pins.o serial.o
 
 PROGCMD    = $(AVRDUDE) -B10 -p $(DEVICE) -c $(PROGDEV) -P $(PROGTTY)

@@ -3,16 +3,29 @@
 
 #include <stdint.h>
 
-#ifndef __AVR__
-#define CLIENT_INCLUDE
-#endif
-
 #ifdef __GNUC__
 #define PACKED_STRUCT __attribute__((packed))
 #else
 #define PACKED_STRUCT
 #endif
 
+
+#ifdef __AVR__
+typedef __int24 int24_t;
+#else
+#pragma pack(push, 1)
+typedef struct int24_struct {
+    uint8_t l;
+    uint8_t m;
+     int8_t h;
+} PACKED_STRUCT;
+
+typedef struct int24_struct int24_t; 
+static inline int32_t convert24to32(int24_t i) { return ((i.l << 0) | (i.m << 8) | (i.h << 16)); }
+
+#pragma pack(pop)
+#define CLIENT_INCLUDE
+#endif
 
 // ---------------------------------------------------------------------------------------------------
 //
@@ -26,7 +39,7 @@
     #define STATE_BIT_BUFFER_EMPTY 0  /* 0x01 Motion buffer empty */
     #define STATE_BIT_RUNNING      1  /* 0x02 Motion stream is being processed */
     #define STATE_BIT_MOVING       2  /* 0x04 Machine is moving */
-    #define STATE_BIT_RES1         3  /* 0x08 */
+    #define STATE_BIT_RES1         4  /* 0x08 */
 
     #define STATE_BIT_RES2         4  /* 0x10 */
     #define STATE_BIT_RES3         5  /* 0x20 */
@@ -55,9 +68,12 @@
         uint8_t free_slots; // free slots in motion queue
         uint8_t tag;    // tag of active movement
         uint8_t stop_reason;
-        int32_t X;
-        int32_t Y;
-        int32_t Z;
+        int24_t X;
+        int24_t Y;
+        int24_t Z;
+        int8_t  vX;
+        int8_t  vY;
+        int8_t  vZ;
     } PACKED_STRUCT;
 #pragma pack(pop)
 
@@ -112,20 +128,13 @@
 //
 // ---------------------------------------------------------------------------------------------------
 
-#pragma pack(push, 1)
-struct movement_block {
-    int8_t  X;
-    int8_t  Y;
-    int8_t  Z;
-} PACKED_STRUCT; 
-#pragma pack(pop)
-
 #define CMD_MOVE_STOP       0x20    /* Start processing queued movement commands */
 #define CMD_MOVE_START      0x21    /* Stop movement */
 
 // Jog at constant speed
 // Parameters:
-//  struct movement_block
+//  uint8_t axis
+//   int8_t speed
 #define CMD_MOVE_JOG        0x22    /* Set motion to desired speeds. Buggy. */
 
 // Queue movement for execution, response is followed by MSG_POSITION
@@ -141,6 +150,14 @@ struct movement_block {
 
 #define CMD_MOVE_QUEUE      0x23
     #define RES_QUEUED          0x20
+
+#pragma pack(push, 1)
+struct movement_block {
+    int8_t  X;
+    int8_t  Y;
+    int8_t  Z;
+} PACKED_STRUCT; 
+#pragma pack(pop)
 
 #endif
 

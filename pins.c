@@ -63,7 +63,22 @@ ISR(INPUT_PCI_vect)
     }
 
     if (change & ((1 << INPUT_LIMIT_X) | (1 << INPUT_LIMIT_Y) | (1 << INPUT_LIMIT_Z))) {
-        movement_stop(STOP_REASON_LIMIT);
+        if (STATE_FLAGS & (1 << STATE_BIT_RUNNING)) {
+            movement_stop(STOP_REASON_LIMIT);
+        } else { // We're jogging, do partial automatic homing
+            if (change & (1 << INPUT_LIMIT_X)) {
+                movement_jog(0, 0, 1);
+                status.X = 0;
+            }
+            if (change & (1 << INPUT_LIMIT_Y)) {
+                movement_jog(1, 0, 1);
+                status.Y = 0;
+            }
+            if (change & (1 << INPUT_LIMIT_Z)) {
+                movement_jog(2, 0, 1);
+                status.Z = 0;
+            }
+        }
     } else if (change & (1 << INPUT_PROBE))
         movement_stop(STOP_REASON_PROBE);
 }

@@ -15,6 +15,9 @@
 
 struct status_block status;
 
+extern uint8_t movement_queue_tail;
+extern uint8_t movement_queue_head;
+
 static void cmd_send_status()
 {
     struct status_block tmp;
@@ -23,7 +26,7 @@ static void cmd_send_status()
     asm volatile("sei");
     serial_tx(MSG_POSITION);
     serial_tx(STATE_FLAGS);
-    serial_tx(0); // GPIO OUTPUTS
+    serial_tx(CONTROL_PORT);
     serial_txb(&tmp, sizeof(struct status_block));
 }
 
@@ -31,18 +34,15 @@ void timeslice_elapsed()
 {
     uint16_t blink_speed;
     if (STATE_FLAGS & (1 << STATE_BIT_ESTOP)) 
-        blink_speed = 0x01;
+        blink_speed = 0x04;
     else if (STATE_FLAGS & (1 << STATE_BIT_RUNNING))
         blink_speed = 0x10;
     else
         blink_speed = 0x30;
 
-#if MOVEMENT_TIMESLICE == TIMESLICE_4MS
-    blink_speed *= 8;
-#endif
-
     static uint16_t blinker = 0;
-    if (blinker++ > blink_speed) {
+    blinker++;
+    if (blinker >= blink_speed) {
         PORTB ^= 0x80;
         blinker = 0;
     }
@@ -57,29 +57,29 @@ void timeslice_elapsed()
 
 static void handle_move_queue()
 {
-    uint8_t countIn = serial_rx();
     uint8_t estop = (STATE_FLAGS & (1 << STATE_BIT_ESTOP)) != 0;
-
-    int i;
+    uint8_t skip = estop;
+ 
     uint8_t countOut = 0;
     uint8_t tag = 0;
+    struct movement_block arg;
+ 
+    uint8_t countIn = serial_rx();
 
-    if (!estop) {
-        struct movement_block * blk;
-        for (i = 0; i < countIn; i++) {
-            blk = movement_queue_get_free();
-            if (!blk)
-                break;
-            serial_rxb(blk, sizeof(struct movement_block));
-            uint8_t tmp = movement_queue_commit();
-            if (countOut == 0)
-                tag = tmp; 
-            countOut++;
-        }
-    }
-    for (i = countOut; i < countIn; i++) {
-        struct movement_block arg;
+    int i;
+    for (i = 0; i < countIn; i++) {
         serial_rxb(&arg, sizeof(struct movement_block));
+        if (skip)
+            continue;
+
+        int16_t res = movement_push(&arg);
+        if (res < 0) {
+            skip = 1;
+            continue;
+        }
+        if (countOut == 0)
+            tag = (uint8_t)res;
+        countOut++;
     }
 
     if (estop) {
@@ -174,10 +174,10 @@ static int8_t handle_command()
             return 0;
 
         case CMD_MOVE_JOG: {
-            struct movement_block arg;
-            serial_rxb(&arg, sizeof(struct movement_block));
+            uint8_t axis = serial_rx();
+            int8_t speed = serial_rx();
             if (ESTOP) break;
-            if (movement_jog(&arg) < 0)
+            if (movement_jog(axis, speed, 0) < 0)
                 res = RES_NAK;
         } break;
 
