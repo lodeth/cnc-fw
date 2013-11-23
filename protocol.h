@@ -71,9 +71,6 @@ static inline int32_t convert24to32(int24_t i) { return ((i.l << 0) | (i.m << 8)
         int24_t X;
         int24_t Y;
         int24_t Z;
-        int8_t  vX;
-        int8_t  vY;
-        int8_t  vZ;
     } PACKED_STRUCT;
 #pragma pack(pop)
 

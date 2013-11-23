@@ -30,8 +30,19 @@ static void cmd_send_status()
     serial_txb(&tmp, sizeof(struct status_block));
 }
 
+
 void timeslice_elapsed()
 {
+#ifdef IDLE_TIMESLICE_COUNT_BEFORE_DISABLE
+    static uint8_t stepper_to_idle_counter;
+    if (STATE_FLAGS & (1 << STATE_BIT_MOVING))
+        stepper_to_idle_counter = 0;
+    else if (stepper_to_idle_counter == IDLE_TIMESLICE_COUNT_BEFORE_DISABLE)
+        pins_disable_steppers();
+    else
+        stepper_to_idle_counter++;
+#endif
+
     uint16_t blink_speed;
     if (STATE_FLAGS & (1 << STATE_BIT_ESTOP)) 
         blink_speed = 0x04;

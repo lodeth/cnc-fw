@@ -231,38 +231,38 @@ static void movement_set(struct movement_block * next_op)
     TIFR1 = 0;
     status.stop_reason = STOP_REASON_NONE;
 
-    status.vX = next_op->X;
-    if (status.vX != 0) {
-        if (status.vX > 0) {
+    register int8_t vX = next_op->X;
+    if (vX != 0) {
+        if (vX > 0) {
             STEPPER_PORT &= ~(1 << STEPPER_PIN_DIR_X);
         } else {
             STEPPER_PORT |= (1 << STEPPER_PIN_DIR_X);
         }
-        intervalX = pgm_read_word(&pulse_timings[abs(status.vX)]);
+        intervalX = pgm_read_word(&pulse_timings[abs(vX)]);
         OCR1A = intervalX;
         TIMSK1 |= (1 << OCIE1A);
     }
 
-    status.vY = next_op->Y;
-    if (status.vY != 0) {
-        if (status.vY > 0) {
+    register int8_t vY = next_op->Y;
+    if (vY != 0) {
+        if (vY > 0) {
             STEPPER_PORT &= ~(1 << STEPPER_PIN_DIR_Y);
         } else {
             STEPPER_PORT |= (1 << STEPPER_PIN_DIR_Y);
         }
-        intervalY = pgm_read_word(&pulse_timings[abs(status.vY)]);
+        intervalY = pgm_read_word(&pulse_timings[abs(vY)]);
         OCR1B = intervalY;
         TIMSK1 |= (1 << OCIE1B);
     }
 
-    status.vZ = next_op->Z;
-    if (status.vZ != 0) {
-        if (status.vZ > 0) {
+    register int8_t vZ = next_op->Z;
+    if (vZ != 0) {
+        if (vZ > 0) {
             STEPPER_PORT &= ~(1 << STEPPER_PIN_DIR_Z);
         } else {
             STEPPER_PORT |= (1 << STEPPER_PIN_DIR_Z);
         }
-        intervalZ = pgm_read_word(&pulse_timings[abs(status.vZ)]);
+        intervalZ = pgm_read_word(&pulse_timings[abs(vZ)]);
         OCR1C = intervalZ;
         TIMSK1 |= (1 << OCIE1C);
     }

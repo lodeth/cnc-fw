@@ -20,7 +20,8 @@
 
     #define MOVEMENT_TIMESLICE TIMESLICE_32MS
 
-    #define MAX_JOG_RATE 0x30
+#define MAX_JOG_RATE 0x30
+#define IDLE_TIMESLICE_COUNT_BEFORE_DISABLE 0xff
 
 // This is multiplied with the pulse width base value to get the
 // stepping pulse width.
